@@ -1,4 +1,6 @@
-// $Id: chat.h,v 1.3 2004/09/25 05:32:18 MouseJstr Exp $
+// Copyright (c) Athena Dev Teams - Licensed under GNU GPL
+// For more information, see LICENCE in the main folder
+
 #ifndef _CHAT_H_
 #define _CHAT_H_
 
@@ -16,7 +18,5 @@ int chat_deletenpcchat(struct npc_data *nd);
 int chat_enableevent(struct chat_data *cd);
 int chat_disableevent(struct chat_data *cd);
 int chat_npckickall(struct chat_data *cd);
-
-int do_final_chat(void);
 
 #endif

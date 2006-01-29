@@ -1,4 +1,6 @@
-// $Id: path.c,v 1.1.1.1 2004/09/10 17:27:00 MagicalTux Exp $
+// Copyright (c) Athena Dev Teams - Licensed under GNU GPL
+// For more information, see LICENCE in the main folder
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -6,14 +8,10 @@
 #include "map.h"
 #include "battle.h"
 #include "nullpo.h"
-
-#ifdef MEMWATCH
-#include "memwatch.h"
-#endif
-
-//#define PATH_STANDALONETEST
+#include "../common/showmsg.h"
 
 #define MAX_HEAP 150
+
 struct tmp_path { short x,y,dist,before,cost; char dir,flag;};
 #define calc_index(x,y) (((x)+(y)*MAX_WALKPATH) & (MAX_WALKPATH*MAX_WALKPATH-1))
 
@@ -26,7 +24,7 @@ static void push_heap_path(int *heap,struct tmp_path *tp,int index)
 	int i,h;
 
 	if( heap == NULL || tp == NULL ){
-		printf("push_heap_path nullpo\n");
+		ShowError("push_heap_path nullpo\n");
 		return;
 	}
 
@@ -55,7 +53,7 @@ static void update_heap_path(int *heap,struct tmp_path *tp,int index)
 		if(heap[h+1]==index)
 			break;
 	if(h==heap[0]){
-		fprintf(stderr,"update_heap_path bug\n");
+		ShowError("update_heap_path bug\n");
 		exit(1);
 	}
 	for(i=(h-1)/2;
@@ -172,7 +170,7 @@ static int can_place(struct map_data *m,int x,int y,int flag)
 
 	if(map_getcellp(m,x,y,CELL_CHKPASS))
 		return 1;
-	else if((flag&0x10000)&&map_getcellp(m,x,y,CELL_CHKGROUND))
+	if((flag&0x10000)&&map_getcellp(m,x,y,CELL_CHKGROUND))
 		return 1;
 	return 0;
 }
@@ -189,8 +187,13 @@ static int can_move(struct map_data *m,int x0,int y0,int x1,int y1,int flag)
 		return 0;
 	if(x1<0 || y1<0 || x1>=m->xs || y1>=m->ys)
 		return 0;
+	if(flag&0x20000) //Flag to ignore everything, for use with Taekwon's Jump skill currently. [Skotlex] 
+		return 1;
+#ifndef CELL_NOSTACK
+	//In no-stack mode, do not check current cell.
 	if(!can_place(m,x0,y0,flag))
 		return 0;
+#endif
 	if(!can_place(m,x1,y1,flag))
 		return 0;
 	if(x0==x1 || y0==y1)
@@ -199,6 +202,7 @@ static int can_move(struct map_data *m,int x0,int y0,int x1,int y1,int flag)
 		return 0;
 	return 1;
 }
+
 /*==========================================
  * (x0,y0)から(dx,dy)方向へcountセル分
  * 吹き飛ばしたあとの座標を所得
@@ -214,12 +218,12 @@ int path_blownpos(int m,int x0,int y0,int dx,int dy,int count)
 
 	if(count>15){	// 最大10マスに制限
 		if(battle_config.error_log)
-			printf("path_blownpos: count too many %d !\n",count);
+			ShowWarning("path_blownpos: count too many %d !\n",count);
 		count=15;
 	}
 	if(dx>1 || dx<-1 || dy>1 || dy<-1){
 		if(battle_config.error_log)
-			printf("path_blownpos: illeagal dx=%d or dy=%d !\n",dx,dy);
+			ShowError("path_blownpos: illeagal dx=%d or dy=%d !\n",dx,dy);
 		dx=(dx>=0)?1:((dx<0)?-1:0);
 		dy=(dy>=0)?1:((dy<0)?-1:0);
 	}
@@ -348,19 +352,20 @@ int path_search(struct walkpath_data *wpd,int m,int x0,int y0,int x1,int y1,int 
 				break;
 			x+=dx;
 			wpd->path[i++]=(dx<0) ? 2 : 6;
-		} else { // y!=y1
+		} else if(y!=y1){
 			if(!can_move(md,x,y,x   ,y+dy,flag))
 				break;
 			y+=dy;
 			wpd->path[i++]=(dy>0) ? 0 : 4;
 		}
-		if(x==x1 && y==y1){
-			wpd->path_len=i;
-			wpd->path_pos=0;
-			wpd->path_half=0;
-			return 0;
-		}
 	}
+	if (x==x1 && y==y1) { //easy path successful.
+		wpd->path_len=i;
+		wpd->path_pos=0;
+		wpd->path_half=0;
+		return 0;
+	}
+	
 	if(flag&1)
 		return -1;
 
@@ -421,6 +426,14 @@ int path_search(struct walkpath_data *wpd,int m,int x0,int y0,int x1,int y1,int 
 	}
 	return -1;
 }
+
+/*==========================================
+
+ * path探索 (x0,y0)->(x1,y1)
+
+ *------------------------------------------
+ 
+ */
 
 #ifdef PATH_STANDALONETEST
 char gat[64][64]={

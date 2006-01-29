@@ -3,20 +3,24 @@
 //===== By: ================================================== 
 //= eAthena dev team
 //===== Current Version: ===================================== 
-//= 1.3
+//= 1.7
 //===== Compatible With: ===================================== 
-//= eAthena 0.5.2 +
+//= eAthena 1.0
 //===== Description: ========================================= 
 //=
 //===== Additional Comments: ================================= 
-//= Fully working.
-//= v1.1 Added RS125 NPC.  Added another Kafra Resrve points agent.
+//= v1.1 Added RS125 NPC.  Added another Kafra Reserve points agent.
 //= The 2nd reserve points agent is not complete yet.
 //= 1.2 Lottery input number fix [Lupus], 1.2a - label typo fixed
 //= 1.3 Gatekeeper's bug fixed (wrong check and wrong item ID 
 //=     for underground), fixed some typos [Lupus]
+//= 1.4 Fixed Typos & Spellcheck [massdriller]
+//= 1.5 Finally added the Special Reserve 2 Lotto 8))
+//=  with official prizes (80% official, 4-5 entries are made up)
+//=  also changed typo Orange Potions -> Red Potions [Lupus]
+//= 1.6 Fixed bug (missing label), optimized all menus [Lupus]
+//= 1.7 Fixed exploits [Lupus]
 //============================================================
-
 
 
 // Panama  --------------------------------------------------------------
@@ -24,9 +28,8 @@ aldebaran.gat,46,129,4	script	Panama	97,{
 	mes "[Panama]";
 	mes "Al De Baran has been widely known throughout Rune-Midgard Kingdom as the City of canals.";
 	next;
-	menu "About the canals",M_0,"End conversation",M_End;
+	menu "About the canals",-,"End conversation",M_End;
 	
-	M_0:
 		mes "[Panama]";
 		mes "A canal is an artificial river used for travel, shipping, or irrigation.  Generally they are used for transportation.";
 		next;
@@ -48,7 +51,7 @@ aldebaran.gat,49,93,4	script	Miller	83,{
 	mes "Did you know that LEVEL 4 weapons exist?";
 	next;
 	mes "[Miller]";
-	mes "Hmmm... of course they are rarely seen, but I hear that Boss monsters drop them occasionaly.";
+	mes "Hmmm... of course they are rarely seen, but I hear that Boss monsters drop them occasionally.";
 	close;
 }
 
@@ -71,9 +74,8 @@ aldebaran.gat,60,70,4	script	Senorita Sylvia	69,{
 	mes "[Senorita Sylvia]";
 	mes "Ah~ by the way, would you like to know a bit of very useful information?";
 	next;
-	menu "Please continue.",M_0,"Not really.",M_End;
+	menu "Please continue.",-,"Not really.",M_End;
 	
-	M_0:
 		mes "[Senorita Sylvia]";
 		mes "If you pick up equipment that was dropped by a monster, you will not be able to equip it right away.";
 		next;
@@ -94,9 +96,8 @@ aldebaran.gat,64,104,4	script	Quatro	55,{
 	mes "It has been rumored that famous blacksmith came to this town from Geffen...";
 M_Menu:
 	next;
-	menu "Famous Blacksmith?",M_0,"About weapon upgrading",M_1,"End conversation",M_End;
+	menu "Famous Blacksmith?",-,"About weapon upgrading",M_1,"End conversation",M_End;
 
-	M_0:
 		mes "[Quatro]";
 		mes "People say his wife is ill.  She constantly needs medicinal herbs that grow near town.";
 		mes "Also he has a devoted son, who helps him out with his work.";
@@ -110,9 +111,9 @@ M_Menu:
 		mes "If you upgrade a weapon its attack strength will increase.";
 		next;
 		mes "[Quatro]";
-		mes "For a ^0000fflevel 1^000000 weapon attack str will go up by ^ff00002^000000 for every upgrade level.";
-		mes "For a ^0000fflevel 2^000000 weapon attack str will go up by ^ff00003^000000.";
-		mes "For a ^0000fflevel 3 and level 4^000000 weapon attack str will go up by ^ff00005^000000!";
+		mes "For a ^0000fflevel 1^000000 weapon attack STR will go up by ^ff00002^000000 for every upgrade level.";
+		mes "For a ^0000fflevel 2^000000 weapon attack STR will go up by ^ff00003^000000.";
+		mes "For a ^0000fflevel 3 and level 4^000000 weapon attack STR will go up by ^ff00005^000000!";
 		goto M_Menu;
 
 	M_End:
@@ -125,9 +126,8 @@ aldebaran.gat,67,154,4	script	Isenberg	98,{
 	mes "Mount Mjolnir and the Payon Forest are both notorious for high amounts of rainfall.";
 M_Menu:
 	next;
-	menu "Mt. Mjolnir",M_0,"Payon Forest",M_1,"End conversation",M_End;
+	menu "Mt. Mjolnir",-,"Payon Forest",M_1,"End conversation",M_End;
 	
-	M_0:
 		mes "[Isenberg]";
 		mes "Mt. Mjolnir !";
 		next;
@@ -140,7 +140,7 @@ M_Menu:
 		next;
 		mes "[Isenberg]";
 		mes "You did a good job to get here.";
-	emotion 21;
+		emotion 21;
 		goto M_Menu;
 	M_1:
 		mes "[Isenberg]";
@@ -163,7 +163,7 @@ M_Menu:
 		goto M_Menu;
 	M_End:
 		mes "[Isenberg]";
-		mes "Although Mnt. Mjolnir hinders travellers, it also creates a mysterious and unique atmoshpere in our town.";
+		mes "Although Mnt. Mjolnir hinders travelers, it also creates a mysterious and unique atmosphere in our town.";
 		close;
 }
 
@@ -172,11 +172,10 @@ aldebaran.gat,81,61,4	script	Joanne	101,{
 	mes "[Joanne]";
 	mes "I like to go gathering sea shells.  It is really fun";
 	next;
-	menu "Shell Gathering",M_0,"End Conversation",M_End;
+	menu "Shell Gathering",-,"End Conversation",M_End;
 
-	M_0:
 		mes "[Joanne]";
-		mes "When you see bubbles popping up from the sand or a muddy puddle, try diggin in that area.";
+		mes "When you see bubbles popping up from the sand or a muddy puddle, try digging in that area.";
 		mes "Usually shell fish conceal themselves under the ground.";
 		next;
 		mes "[Joanne]";
@@ -194,19 +193,18 @@ aldebaran.gat,81,61,4	script	Joanne	101,{
 }
 
 // Bebe -------------------------------------------------------------------
-aldebaran.gat,86,228,4	srcipt	Bebe	703,{
+aldebaran.gat,86,228,4	script	Bebe	703,{
 	mes "[Bebe]";
-	mes "A while back I went out for a walk towards Mt.Mjolnir, carrying a 'Savage Bebe' with me.";
+	mes "A while back I went out for a walk towards Mt.Mjolnir, carrying a 'Savage Babe' with me.";
 M_Menu:
 	next;
-	menu "Savage Bebe??",M_0,"Mt.Mjolnir??",M_1,"End Conversation",M_End;
+	menu "Savage Babe??",-,"Mt.Mjolnir??",M_1,"End Conversation",M_End;
 
-	M_0:
 		mes "[Bebe]";
-		mes "A Savage Bebe is a kind of baby wild boar that has a pink color.  It's very cute and pretty.";
+		mes "A Savage Babe is a kind of baby wild boar that has a pink color.  It's very cute and pretty.";
 		next;
 		mes "[Bebe]";
-		mes "Anyways, I was walking up this narrow path when... out of nowhere, this GIANT, UGLY, PLANT attacked me and my Savage Bebe!";
+		mes "Anyways, I was walking up this narrow path when... out of nowhere, this GIANT, UGLY, PLANT attacked me and my Savage Babe!";
 		emotion 0;
 		next;
 		mes "[Bebe]";
@@ -225,10 +223,10 @@ M_Menu:
 
 	M_1:
 		mes "[Bebe]";
-		mes "Even though people are facinated by the scenic beauty of Mt.Mjolnir, this mountain is filled with weird monsters.";
+		mes "Even though people are fascinated by the scenic beauty of Mt.Mjolnir, this mountain is filled with weird monsters.";
 		next;
 		mes "[Bebe]";
-		mes "Monsters like Man Eating Flowers, giant Moths, Bigfoot, giant Centipedes, and so much more.  So be carefull if you ever go up there.";
+		mes "Monsters like Man Eating Flowers, giant Moths, Bigfoot, giant Centipedes, and so much more.  So be careful if you ever go up there.";
 		next;
 		mes "[Bebe]";
 		mes "Most of the monsters won't attack you if you don't attack them first though.";
@@ -236,7 +234,7 @@ M_Menu:
 
 	M_End:
 		mes "[Bebe]";
-		mes "Ah?! Where is my Savage Bebe..? Savage Bebe, where are you!";
+		mes "Ah?! Where is my Savage Babe..? Savage Babe, where are you!";
 		emotion 20;
 		close;
 }
@@ -244,30 +242,29 @@ M_Menu:
 // Epthiel -----------------------------------------------------------------
 aldebaran.gat,90,170,4	script	Epthiel	47,{
 	mes "[Epthiel]";
-	mes "Some weapons and armor have slotts in them.  This allows you to insert monster cards into them.";
+	mes "Some weapons and armor have slots in them.  This allows you to insert monster cards into them.";
 M_Menu:
 	next;
-	menu "About the number of slots..",M_0,"Relation between Cards and Slots",M_1,"End Conversation",M_End;
+	menu "About the number of slots..",-,"Relation between Cards and Slots",M_1,"End Conversation",M_End;
 
-	M_0:
 		mes "[Epthiel]";
-		mes "Items dropped by monsters often times have more slotts than ordinary weapons or armor sold at an NPC shop.";
+		mes "Items dropped by monsters often times have more slots than ordinary weapons or armor sold at an NPC shop.";
 		next;
 		mes "[Epthiel]";
-		mes "The greater number of slotts a piece of equipment has the greater its value is.";
+		mes "The greater number of slots a piece of equipment has the greater its value is.";
 		goto M_Menu;
 	M_1:
 		mes "[Epthiel]";
-		mes "When a card is inserted into a slott on a piece of equipment, the owner will gain certain skills or stat bonuses from that card.";
+		mes "When a card is inserted into a slot on a piece of equipment, the owner will gain certain skills or stat bonuses from that card.";
 		next;
 		mes "[Epthiel]";
-		mes "If the weapon or armor with the card is unequiped, then the effect of the card will wear off.";
+		mes "If the weapon or armor with the card is unequipped, then the effect of the card will wear off.";
 		next;
 		mes "[Epthiel]";
-		mes "A very important thing to know about inserting a card into a slott, is that once inserted the card cannot be removed.";
+		mes "A very important thing to know about inserting a card into a slot, is that once inserted the card cannot be removed.";
 		next;
 		mes "[Epthiel]";
-		mes "So make sure you're absolutely sure about putting a card into a slott.  You don't want to waste one.";
+		mes "So make sure you're absolutely sure about putting a card into a slot.  You don't want to waste one.";
 		goto M_Menu;
 	M_End:
 		mes "[Epthiel]";
@@ -289,9 +286,8 @@ aldebaran.gat,93,80,4	script	Daniel	48,{
 	mes "I couldn't enjoy my date with my girl friend which sucked big time!";
 	emotion 7;
 	next;
-	menu "Gosh, that's too bad.",M_0,".....",M_1;
+	menu "Gosh, that's too bad.",-,".....",M_1;
 
-	M_0:
 		mes "[Daniel]";
 		mes "*~Sigh~* Yeah it really is.  You see my girl friend is the Armor Merchants youngest daughter.";
 		mes "She told me once that the armor that's dropped by monsters is often times much better than the kind sold in shops.";
@@ -312,8 +308,8 @@ aldebaran.gat,113,70,2	script	Munster	48,{
 	mes "My family used to live in Geffen, the homeland of blacksmith.  We moved to Al De Baran last winter.";
 	next;
 	mes "[Munster]";
-	mes "Back in Geffen my father was a famous blacksmith.  Sometimes I heped my father with his work";
-	mes "I learned alot about the success rate of ugrading weapons of different levels.";
+	mes "Back in Geffen my father was a famous blacksmith.  Sometimes I helped my father with his work";
+	mes "I learned a lot about the success rate of upgrading weapons of different levels.";
 	next;
 	mes "[Munster]";
 	mes "A ^0000fflevel 1^000000 weapon could be safely upgraded ^ff00007^000000 times,";
@@ -321,16 +317,16 @@ aldebaran.gat,113,70,2	script	Munster	48,{
 	mes "and ^0000fflevel 3 and 4^000000 weapons ^ff00005^000000 times each.";
 	next;
 	mes "[Munster]";
-	mes "With level 4 weapons however, there is still a risk of failure durring the first upgrade.";
+	mes "With level 4 weapons however, there is still a risk of failure during the first upgrade.";
 	next;
 	mes "[Munster]";
-	mes "As far as ^0000ffarmor^000000 goes, they can gernerally be upgraded about ^ff00005^000000 times.";
+	mes "As far as ^0000ffarmor^000000 goes, they can generally be upgraded about ^ff00005^000000 times.";
 	next;
 	mes "[Munster]";
 	mes "Maybe it's because we just moved here, but for some reason people don't seem to know that my fathers workshop is now located in Al De Baran,";
 	next;
 	mes "[Munster]";
-	mes "Anywho, I hope people will come to re-acquaint themselves with my fathers superior craftmanship.";
+	mes "Any who, I hope people will come to re-acquaint themselves with my fathers superior craftsmanship.";
 	close;
 }
 
@@ -339,14 +335,13 @@ aldebaran.gat,117,181,4	script	Pharacon Guy	48,{
 	mes "[Phracon Guy]";
 	mes "Lv 1 weapons require a metal called 'Pharacon' to be upgraded.";
 	next;
-	menu "About Pharacon",M_0,"Advice about Phracon",M_1,"End Conversation",M_End;
+	menu "About Pharacon",-,"Advice about Phracon",M_1,"End Conversation",M_End;
 
-	M_0:
 		mes "[Pharacon Guy]";
 		mes "It's a very common metal found throughout Rune-Midgard and is used almost exclusively for weapon upgrading.";
 		next;
 		mes "[Pharacon Guy]";
-		mes "Although it's not as strong as other metals, it reamins popular among most people because of its abundance.";
+		mes "Although it's not as strong as other metals, it remains popular among most people because of its abundance.";
 		next;
 		mes "[Pharacon Guy]";
 		mes "You can obtain Pharacon from monsters or you can purchase it from Forging Workshops located in towns.";
@@ -356,13 +351,13 @@ aldebaran.gat,117,181,4	script	Pharacon Guy	48,{
 		close;
 	M_1:
 		mes "[Pharacon Guy]";
-		mes "I hear that alot of monsters carry Pharacon.  Why don't you go hunt them?";
+		mes "I hear that a lot of monsters carry Pharacon.  Why don't you go hunt them?";
 		mes "You should be able to find a lot of Pharacon without much trouble.";
 		next;
 		mes "[Pharacon Guy]";
 		mes "A couple of days ago, I went hunting with the Pub Master and got a Pharacon dropped from Bebe Savage.";
 		close;
-	M_2:
+	M_End:
 		mes "[Pharacon Guy]";
 		mes "Good luck on finding some Pharacon -";
 		close;
@@ -371,20 +366,19 @@ aldebaran.gat,117,181,4	script	Pharacon Guy	48,{
 // Alchemy Guy Chemirre -----------------------------------------------------------
 aldebaran.gat,121,231,4	script	Alchemy Guy Chemirre	740,{
 	mes "[Alchemy Guy Chemirre]";
-	mes "The Alchemist is one of the 2nd Job Classes and involves the creation of rare and valuble items from abundant materials.";
+	mes "The Alchemist is one of the 2nd Job Classes and involves the creation of rare and valuable items from abundant materials.";
 M_Menu:
 	next;
-	menu "About Alchemy of Payon",M_0,"The concept behind Alchemy",M_1,". . . . .",M_2,"End Conversation",M_End;
+	menu "About Alchemy of Payon",-,"The concept behind Alchemy",M_1,". . . . .",M_2,"End Conversation",M_End;
 
-	M_0:
 		mes "[Alchemy Guy Chemirre]";
-		mes "Payon Alchemy dates as far back as the Alchemy of Al De Baran and originates from Toaism.";
+		mes "Payon Alchemy dates as far back as the Alchemy of Al De Baran and originates from Taoism.";
 		next;
 		mes "[Alchemy Guy Chemirre]";
 		mes "Just like the Alchemists of Al De Baran, the Alchemists of Payon were able to create gold out of various materials.";
 		next;
 		mes "[Alchemy Guy Chemirre]";
-		mes "However due Payon's environment and a lack of adequate reasources, Payon alchemy never exceled the way it did in Al De Baran.";
+		mes "However due Payon's environment and a lack of adequate reasources, Payon alchemy never excelled the way it did in Al De Baran.";
 		next;
 		mes "[Alchemy Guy Chemirre]";
 		mes "Therefore the Alchemist Guild in Al De Baran became the only Alchemy Research Organization in Rune-Midgard.";
@@ -392,7 +386,7 @@ M_Menu:
 
 	M_1:
 		mes "[Alchemy Guy Chemirre]";
-		mes "Alchemy involves chemical research, and the practice of creating useful items out of materials that are usually non valuble.";
+		mes "Alchemy involves chemical research, and the practice of creating useful items out of materials that are usually non valuable.";
 		goto M_Menu;
 	M_2:
 		mes "[Alchemy Guy Chemirre]";
@@ -409,11 +403,11 @@ M_Menu:
 		mes "If you check the card's description, you will find that the Poring card increases its wearer's LUK by 1, and that it can be only inserted on 'Armor'.";
 		next;
 		mes "[Alchemy Guy Chemirre]";
-		mes "Something to take note of is the fact that armor purchased at an NPC shop may not have slotts on them.";
-		mes "Armor dropped by monsters however, will usually have a high number of slotts on them.  They aren't dropped too often though.";
+		mes "Something to take note of is the fact that armor purchased at an NPC shop may not have slots on them.";
+		mes "Armor dropped by monsters however, will usually have a high number of slots on them.  They aren't dropped too often though.";
 		next;
 		mes "[Alchemy Guy Chemirre]";
-		mes "In order to use a card you must first unequip the piece of equipment you want to insert the card into.";
+		mes "In order to use a card you must first unequipped the piece of equipment you want to insert the card into.";
 		mes "Next find your card in your inventory window and double click it.";
 		next;
 		mes "[Alchemy Guy Chemirre]";
@@ -426,12 +420,12 @@ M_Menu:
 
 }
 
-// Nastasia --------------------------------------------------------------
-aldebaran.gat,146,124,4	script	Nastasia	101,{
-	mes "[Nastasia]";
-	mes "Somewhere in Rune-Midgard there exists the ^3355FF' Assassin Guild '^000000.";
+// Anastasia --------------------------------------------------------------
+aldebaran.gat,146,124,4	script	Anastasia	101,{
+	mes "[Anastasia]";
+	mes "Somewhere in Rune-Edgardo's there exists the ^3355FF' Assassin Guild '^000000.";
 	next;
-	mes "[Nastasia]";
+	mes "[Anastasia]";
 	mes "It's a place that trains people in the art of assassinating someone without leaving behind the slightest trace.";
 	next;
 	mes "[Nastasia]";
@@ -441,9 +435,8 @@ aldebaran.gat,146,124,4	script	Nastasia	101,{
 	mes "[Nastasia]";
 	mes "And do they collect tuition....??";
 	next;
-	menu "Continue conversation.",M_0,"End Conversation.",M_End;
+	menu "Continue conversation.",-,"End Conversation.",M_End;
 
-	M_0:
 		mes "[Nastasia]";
 		mes "Most flying monsters are very fast and have a high amount of agility.";
 		mes "Therefore, it's very difficult to hit them successfully.";
@@ -463,11 +456,10 @@ aldebaran.gat,159,242,4	script	Stromme	119,{
 	mes "When you spend some time in Mt. Mjolnir, you'll start to notice something.";
 	next;
 	mes "[Stromme]";
-	mes "The insects in Mt. Mjolnir are classified into different groups by thier habits!";
+	mes "The insects in Mt. Mjolnir are classified into different groups by their habits!";
 	next;
-	menu "About insects",M_0,"End conversation",M_End;
-	
-	M_0:
+	menu "About insects",-,"End conversation",M_End;
+
 		mes "[Stromme]";
 		mes "Honey Bees, Butterflies and Moths help transfer pollen between flowers by flying over and around them.";
 		next;
@@ -477,17 +469,17 @@ aldebaran.gat,159,242,4	script	Stromme	119,{
 		next;
 		mes "[Stromme]";
 		mes "There are some insects which are aggressive, such as Praying Mantises, Spiders, and Centipedes etc.";
-		mes "These monsters are strong so you should be carefull about approaching them.";
+		mes "These monsters are strong so you should be careful about approaching them.";
 		next;
 		mes "[Stromme]";
 		mes "Also watch out for a monster that looks like a leech!! One blow from it can prove to be fatal.";
 		next;
 		mes "[Stromme]";
-		mes "Luckily that leech thingy has poor eye sight and won't notice you if you are far enough away from it.";
+		mes "Luckily that leech thing has poor eye sight and won't notice you if you are far enough away from it.";
 		close;
 	M_End:
 		mes "[Stromme]";
-		mes "Don't even dare attack a ladybug haphazardly! Be respectfull of mighty nature in Mt. Mjolnir.";
+		mes "Don't even dare attack a ladybug haphazardly! Be respectful of mighty nature in Mt. Mjolnir.";
 		close;
 }
 
@@ -504,9 +496,8 @@ aldebaran.gat,180,46,4	script	Joo Jahk	88,{
 	mes "Actually I already did, but I am still concerned.....";
 	emotion 4;
 	next;
-	menu "Continue.",M_0,"End conversation.",M_End;
+	menu "Continue.",-,"End conversation.",M_End;
 
-	M_0:
 		mes "[Joo Jahk]";
 		mes "I been traveling around Rune-Midgard.";
 		next;
@@ -531,12 +522,11 @@ aldebaran.gat,212,122,4	script	Gavin	97,{
 	mes "Hmm... did I over-exaggerate? 'Towns people'...";
 	mes "Well... it is just myself, but hey! Still, I welcome you!";
 	next;
-	menu "Continue conversation.",M_0,"End conversation.",M_End;
+	menu "Continue conversation.",-,"End conversation.",M_End;
 
-	M_0:
 		mes "[Gavin]";
 		mes "Ah~ now I remember! I saw a very interesting monster just a few days ago.";
-		mes "I saw a Poring with the wings of an angel, somwhere in the Mjohlnir Mountains surrounding Al De Baran.";
+		mes "I saw a Poring with the wings of an angel, somewhere in the Mjolnir Mountains surrounding Al De Baran.";
 		next;
 		mes "[Gavin]";
 		mes "I swear it!";
@@ -547,7 +537,7 @@ aldebaran.gat,212,122,4	script	Gavin	97,{
 		close;
 	M_End:
 		mes "[Gavin]";
-		mes "I welcome you to Al De Baran, a wonderful city of Canals surrounded by the Mjohlnir Mountains.";
+		mes "I welcome you to Al De Baran, a wonderful city of Canals surrounded by the Mjolnir Mountains.";
 		close;
 }
 
@@ -558,16 +548,14 @@ aldeba_in.gat,152,47,4	script	Giddy Fellow	97,{
 	mes "E..E..E..Emergenc----y!!! I CAN'T find my pet chicken anywhere!!";
 	emotion 23;
 	next;
-	menu "What's its name?",M_0,". . . . .",M_1;
+	menu "What's its name?",-,". . . . .",M_1;
 
-	M_0:
 		mes "[Giddy Fellow]";
 		mes "It's 'The Great Picky ' ... SOB SOB SOB... gosh... what am I gonna do?!~ Please find my cutey for meee~~~";
 		emotion 28;
 		next;
-		menu "Dude! It's such a common name...",L00,". . . . .",L1;
+		menu "Dude! It's such a common name...",-,". . . . .",M_1;
 
-		L00:
 			mes "[Giddy Fellow]";
 			mes "Wha-What are you talking about!! My 'The Great Picky' is the one and only cutest chicken in this whole wide WORLD for Christ's sake~!";
 			emotion 1;
@@ -595,9 +583,8 @@ aldeba_in.gat,156,179,4	script	Master	61,{
 	mes "[Master]";
 	mes "Choose the Kafra Lady that you think is HOT!!!";
 	next;
-	menu "Oh~it turns me on!!!!",M_0,"No way..I am not a pervert.",M_1;
+	menu "Oh~it turns me on!!!!",-,"No way..I am not a pervert.",M_1;
 
-	M_0:
 		mes "[Master]";
 		mes "Alright, here you go, your Favorite Ladies!!! Take a carefull look!";
 		next;
@@ -620,9 +607,8 @@ aldeba_in.gat,156,179,4	script	Master	61,{
 		mes "[Master]";
 		mes "So who do you think?";
 		next;
-		menu "(1) Pavianne",M_00,"(2) Blossom",M_01,"(3) Jasmine",M_02,"(4) Roxie",M_03,"(5) Leilah",M_04,"(6) Curly Sue.",M_05;
+		menu "(1) Pavianne",-,"(2) Blossom",M_01,"(3) Jasmine",M_02,"(4) Roxie",M_03,"(5) Leilah",M_04,"(6) Curly Sue.",M_05;
 
-		M_00:
 			mes "[Master]";
 			mes "Oh~ So your reserved in nature, and therefore you are into a more traditional type of girl...";
 			next;
@@ -639,7 +625,7 @@ aldeba_in.gat,156,179,4	script	Master	61,{
 			close;
 		M_02:
 			mes "[Master]";
-			mes "Gentel, sexy, sweet, and beautifull.... a girl like Jasmine would have you wrapped around her finger in no time....";
+			mes "Gentle, sexy, sweet, and beautiful.... a girl like Jasmine would have you wrapped around her finger in no time....";
 			close;
 		M_03:
 			mes "[Master]";
@@ -651,7 +637,7 @@ aldeba_in.gat,156,179,4	script	Master	61,{
 			close;
 		M_04:
 			mes "[Master]";
-			mes "Into the cold, analitical type huh?... If you like being bossed around, then I guess Leilah's the girl for you....";
+			mes "Into the cold, analytical type huh?... If you like being bossed around, then I guess Leilah's the girl for you....";
 			close;
 		M_05:
 			mes "[Master]";
@@ -684,14 +670,14 @@ aldeba_in.gat,234,241,4	script	RS125	48,{
 
 		mes "[RS125]";
 		mes ".... It was 3 years ago..... My big bro 996, was a highly regarded sprinter in Al De Baran.";
-		mes "People refered to him as 'Al De Baran's Peco Peco'.  He was the fastest runner in the world......";
+		mes "People referred to him as 'Al De Baran's Peco Peco'.  He was the fastest runner in the world......";
 		next;
 		mes "[RS125]";
 		mes "Every 4 years a special track meet called the 'Al De Baran Turbo Tracks', takes place here.";
 		mes "Many admirers from around the world came to see my brother.  They gathered around him every chance they got.";
 		next;
 		mes "[RS125]";
-		mes "I was his manager at the time and even I becamed stressed out by the crowds of people.";
+		mes "I was his manager at the time and even I became stressed out by the crowds of people.";
 		mes "I can only imagine how he felt about being so famous.";
 		next;
 		mes "[RS125]";
@@ -700,15 +686,15 @@ aldeba_in.gat,234,241,4	script	RS125	48,{
 		next;
 		mes "[RS125]";
 		mes "After that humiliating defeat, he decided to train even harder and pushed himself to his limits.";
-		mes "But he pushed to hard and began to have serious heart problems.  To this day he cannot move around without someone elses help.";
+		mes "But he pushed to hard and began to have serious heart problems.  To this day he cannot move around without someone else's help.";
 		next;
 		mes "[RS125]";
 		mes "Now I am the future of Al De Baran athletics!  I am a ray of hope for my brother!";
-		mes "Remeber me, for I shall beat her, 'Havana', the breeze of Payon!";
+		mes "Remember me, for I shall beat her, 'Havana', the breeze of Payon!";
 		close;
 	M_End:
 		mes "[RS125]";
-		mes "I've dreamed of making an around-the-world trip.  It would be wonderfull to trully experience the sea of Alberta!!";
+		mes "I've dreamed of making an around-the-world trip.  It would be wonderful to truly experience the sea of Alberta!!";
 		mes "After the track championship next year, my brother and I are going to travel the whole world together.";
 		close;
 }
@@ -723,14 +709,14 @@ aldeba_in.gat,219,61,4	script	Nice Looking Guy	109,{
 	mes "I heard he was trying to pick some fruits from that tree.";
 	next;
 	mes "[Nice Looking Guy]";
-	mes "Anyways, he's constantly bugging me and I think I'm gonna be crazy beacuse of him... Oh my godness!";
+	mes "Anyways, he's constantly bugging me and I think I'm gonna be crazy because of him... Oh my goodness!";
 	close;
 }
 
 // Evil Looking Guy --------------------------------------------------------------
 aldeba_in.gat,223,121,2	script	Evil looking Guy	63,{
 	mes "[Evil Looking Guy]";
-	mes "Hey dude! Don't you think it's rude for a stranger to enter someone elses house?";
+	mes "Hey dude! Don't you think it's rude for a stranger to enter someone else's house?";
 	emotion 1;
 	next;
 	mes "[Evil Looking Guy]";
@@ -740,9 +726,8 @@ aldeba_in.gat,223,121,2	script	Evil looking Guy	63,{
 	mes "[Evil Looking Guy]";
 	mes "Ah alright, alright.  No more fooling around... you're here because I'm an NPC and you think I'm supposed to help you right?";
 	next;
-	menu "You got it.",M_0, "Nah... just messin around....",M_1;
+	menu "You got it.",-, "Nah... just messing around....",M_1;
 	
-	M_0:
 		mes "[Evil Looking Guy]";
 		mes "You! I'm not sure if you know this, but in this world there exists something called a Mercenary System.";
 		next;
@@ -754,17 +739,17 @@ aldeba_in.gat,223,121,2	script	Evil looking Guy	63,{
 		next;
 		mes "[Evil Looking Guy]";
 		mes "First, check his/her nose.  Yes, I said NOSE! A high quality Mercenary has a moist nose which is a sign of good health.";
-		mes "If it's possible, try touching the Mercenarys' nose.  If it's dry, then there is no doubt that that Mercenary has caught a cold.";
+		mes "If it's possible, try touching the Mercenary's' nose.  If it's dry, then there is no doubt that that Mercenary has caught a cold.";
 		next;
 		mes "[Evil Looking Guy]";
-		mes "A good Mercenary should have slender ankles.  Umm... in adition, he/she should have a snowy and skinny neck!";
-		mes "And if the Mercenarys' hair is long and curly, that's icing on the cake!!";
+		mes "A good Mercenary should have slender ankles.  Umm... in addition, he/she should have a snowy and skinny neck!";
+		mes "And if the Mercenary's' hair is long and curly, that's icing on the cake!!";
 		next;
 		mes "[Evil Looking Guy]";
 		mes "Finally, a Mercenary is obligated to provide 100% customer assistance and support!!!";
 		next;
 		mes "[Evil Looking Guy]";
-		mes "Oh and don't forget to change a Mercenarys' wet tissues as well!!";
+		mes "Oh and don't forget to change a Mercenary's' wet tissues as well!!";
 		close;
 	M_1:
 		mes "[Evil Looking Guy]";
@@ -780,16 +765,15 @@ aldeba_in.gat,223,121,2	script	Evil looking Guy	63,{
 aldeba_in.gat,24,245,4	script	 Kafra Jasmine	115,{
 	cutin "kafra_03",2;
 	mes "[Kafra Jasmine]";
-	mes "Hi~ I am Kafra type Jasmine.  Thank you for comming all the way to the Kafra Main Office here in Al De Baran!";
+	mes "Hi~ I am Kafra type Jasmine.  Thank you for coming all the way to the Kafra Main Office here in Al De Baran!";
 	next;
 	mes "[Kafra Jasmine]";
 	mes "Our Kafra Service is always working with our customers!";
 	mes "Our Kafra Service has a history and legacy that is 5 thousand, 8 hundred years old...";
 	mes "Blah-blah-blah.....";
 	next;
-	menu "FIVE THOUSNAD YEARS?!",M_0, "Ahh~ Shut Up!",M_1, "You got a boyfriend?",M_2;
+	menu "FIVE THOUSNAD YEARS?!",-, "Ahh~ Shut Up!",M_1, "You got a boyfriend?",M_2;
 	
-	M_0:
 		mes "[Kafra Jasmine]";
 		mes "HEY! Just SHUT-UP and LISTEN! It took me a whole week to memorize this!";
 		mes "I've got a poor memory unlike the other Kafra agents!";
@@ -814,7 +798,7 @@ aldeba_in.gat,24,245,4	script	 Kafra Jasmine	115,{
 		next;
 		mes "[Kafra Jasmine]";
 		mes "Just so you know, I was a member of Kafra Garrison before I joined the Kafra Service Team.";
-		mes "My speciality was 'Bash'!! Now I'm trying to be more feminine and live a quieter life";
+		mes "My specialty was 'Bash'!! Now I'm trying to be more feminine and live a quieter life";
 		next;
 		mes "[Kafra Jasmine]";
 		mes "So please, DON'T TEMPT ME...!!";
@@ -836,7 +820,7 @@ aldeba_in.gat,24,245,4	script	 Kafra Jasmine	115,{
 aldeba_in.gat,79,161,6	script	Kafra	115,{
 	cutin "kafra_03",2;
 	mes "[Kafra]";
-	mes "Welcome, ^6666FF" + strcharinfo(0) + "^000000.  This is where you can trade in your special reserve points for usefull items and cool prizes.";
+	mes "Welcome, ^6666FF" + strcharinfo(0) + "^000000.  This is where you can trade in your special reserve points for useful items and cool prizes.";
 	next;
 	mes "[Kafra]";
 	mes "Each Kafra will allow to trade in reserve points of varying amounts.  I can trade in reserve points starting from ^2222FF100 pts up to 3000 pts^000000.";
@@ -847,7 +831,7 @@ M_Menu:
 	next;
 	menu 	"100- Sweet Potato 7 ea",M_1a, "200- Sweet Potato 15 ea",M_1b, "300- Sweet Potato 25 ea",M_1c, "400- Sweet Potato 35 ea",M_1d,
 		"500- Sweet Potato 50 ea",M_1e, "600- Sweet Potato 60 ea",M_1f, "700- Sweet Potato 75 ea",M_1g, "800- Sweet Potato 85 ea",M_1h,
-		"900- Sweet Potato 100 ea",M_1i, "1000- 1st Lotery Chance!",M_1j, "Next items",M_2, "Cancel",M_End;
+		"900- Sweet Potato 100 ea",M_1i, "1000- 1st Lottery Chance!",M_1j, "Next items",M_2, "Cancel",M_End;
 
 	M_1a:
 		if(RESRVPTS < 100) goto sL_LowPts1;
@@ -937,63 +921,63 @@ M_Menu:
 			if(RESRVPTS < 1100) goto sL_LowPts2;
 			mes "[Kafra]";
 			mes "Here you are.";
-			getitem 502, 7;
+			getitem 501, 7;
 			set RESRVPTS, RESRVPTS - 1100;
 			close;
 		M_2b:
 			if(RESRVPTS < 1300) goto sL_LowPts2;
 			mes "[Kafra]";
 			mes "Here you are.";
-			getitem 502, 15;
+			getitem 501, 15;
 			set RESRVPTS, RESRVPTS - 1300;
 			close;
 		M_2c:
 			if(RESRVPTS < 1500) goto sL_LowPts2;
 			mes "[Kafra]";
 			mes "Here you are.";
-			getitem 502, 25;
+			getitem 501, 25;
 			set RESRVPTS, RESRVPTS - 1500;
 			close;
 		M_2d:
 			if(RESRVPTS < 1700) goto sL_LowPts2;
 			mes "[Kafra]";
 			mes "Here you are.";
-			getitem 502, 35;
+			getitem 501, 35;
 			set RESRVPTS, RESRVPTS - 1700;
 			close;
 		M_2e:
 			if(RESRVPTS < 1900) goto sL_LowPts2;
 			mes "[Kafra]";
 			mes "Here you are.";
-			getitem 502, 50;
+			getitem 501, 50;
 			set RESRVPTS, RESRVPTS - 1900;
 			close;
 		M_2f:
 			if(RESRVPTS < 2100) goto sL_LowPts2;
 			mes "[Kafra]";
 			mes "Here you are.";
-			getitem 502, 60;
+			getitem 501, 60;
 			set RESRVPTS, RESRVPTS - 2100;
 			close;
 		M_2g:
 			if(RESRVPTS < 2300) goto sL_LowPts2;
 			mes "[Kafra]";
 			mes "Here you are.";
-			getitem 502, 75;
+			getitem 501, 75;
 			set RESRVPTS, RESRVPTS - 2300;
 			close;
 		M_2h:
 			if(RESRVPTS < 2500) goto sL_LowPts2;
 			mes "[Kafra]";
 			mes "Here you are.";
-			getitem 502, 85;
+			getitem 501, 85;
 			set RESRVPTS, RESRVPTS - 2500;
 			close;
 		M_2i:
 			if(RESRVPTS < 2800) goto sL_LowPts2;
 			mes "[Kafra]";
 			mes "Here you are.";
-			getitem 502, 100;
+			getitem 501, 100;
 			set RESRVPTS, RESRVPTS - 2800;
 			close;
 		M_2j:
@@ -1021,13 +1005,6 @@ M_Menu:
 
 // Special Reserve 2 ----------------------------------------------
 aldeba_in.gat,88,161,3	script	Kafra	115,{
-	cutin "kafra_03",2;
-	mes "[Kafra]";
-	mes "Hello and welcome to the Kafra Corp. Main office.";
-	cutin "",255;
-	close;
-
-// will implement this part when I find out what items to use for the prizes
 	cutin "kafra_03",2;
 	mes "[Kafra]";
 	mes "Welcome ^5577FF"+strcharinfo(0)+"^000000.  We are currently having a special event for our customers.";
@@ -1096,35 +1073,58 @@ function	script	F_Lottery	{
 	mes "[Kafra]";
 	mes "^FF0000Lets see.... This is...!!^000000";
 	next;
-	if(@temp <= 4) goto sL_Prize3;
-	if(@temp <= 7) goto sL_Prize2;
+	if(@temp <  1) goto sL_Prize1;
+	if(@temp <  2) goto sL_Prize2;
+	if(@temp <  3) goto sL_Prize3;
+	if(@temp <=  4) goto sL_Prize4;
+	goto sL_Prize5;
 
 	sL_Prize1:
 		mes "[Kafra]";
 		mes "WOW!!!!..... You win!!! 1st Prize~! Congratulations~~ You got the 1st prize~~";
-		if(@Lotto == 1) getitem, 2328,1;
-		if(@Lotto == 2) getitem, 2307,1;	//don't know if this is the correct item
-		//if(@Lotto == 3) getitem, ,1
-		//if(@Lotto == 4) getitem, ,1
-		//if(@Lotto == 5) getitem, ,1
+		if(@Lotto == 1) getitem 2328,1;//Items: Wooden_Mail,
+		if(@Lotto == 2) getitem 2307,1;//Items: Mantle,
+		if(@Lotto == 3) getitem 657,10;//Items: Berserk_Potion,
+		if(@Lotto == 4) getitem 607,2;//Items: Yggdrasilberry,
+		if(@Lotto == 4) getitem 608,1;//Items: Yggdrasil_Seed,
+		if(@Lotto == 5) getitem 607,3;//Items: Yggdrasilberry,
 		return;
 	sL_Prize2:
 		mes "[Kafra]";
-		mes "Oh wow! You've won the 2nd prize! Congratulations!!";
-		if(@Lotto == 1) getitem 2220, 1;
-		if(@Lotto == 2) getitem 2403, 1;	//don't know if this is the correct item
-		//if(@Lotto == 3) getitem, ,1
-		//if(@Lotto == 4) getitem, ,1
-		//if(@Lotto == 5) getitem, ,1
+		mes "Oh! WOW! You've won the 2nd prize! Congratulations!!";
+		if(@Lotto == 1) getitem 2403,1;//Items: Shoes,
+		if(@Lotto == 2) getitem 2226,1;//Items: Cap,
+		if(@Lotto == 3) getitem 2201,1;//Items: Sunglasses,
+		if(@Lotto == 4) getitem 526,3;//Items: Royal_Jelly,
+		if(@Lotto == 5) getitem 608,1;//Items: Yggdrasil_Seed,
+		if(@Lotto == 5) getitem 526,10;//Items: Royal_Jelly,
 		return;
 	sL_Prize3:
 		mes "[Kafra]";
 		mes "Congratulations! You've won the 3rd prize.";
-		if(@Lotto == 1) getitem 516, 100;
-		if(@Lotto == 2) getitem 502, 100;
-		//if(@Lotto == 3) getitem, ,1
-		//if(@Lotto == 4) getitem, ,1
-		//if(@Lotto == 5) getitem, ,1
+		if(@Lotto == 1) getitem 602,4;//Items: Butterfly_Wing,
+		if(@Lotto == 2) getitem 505,3;//Items: Blue_Potion,
+		if(@Lotto == 3) getitem 2203,1;//Items: Glasses,
+		if(@Lotto == 4) getitem 504,15;//Items: White_Potion,
+		if(@Lotto == 5) getitem 504,30;//Items: White_Potion,
+		return;
+	sL_Prize4:
+		mes "[Kafra]";
+		mes "You've won the 4th prize.";
+		if(@Lotto == 1) getitem 516,100;//Items: Sweet_Potato,
+		if(@Lotto == 2) getitem 501,150;//Items: Red_Potion,
+		if(@Lotto == 3) getitem 502,150;//Items: Orange_Potion,
+		if(@Lotto == 4) getitem 505,5;//Items: Blue_Potion,
+		if(@Lotto == 5) getitem 505,10;//Items: Blue_Potion,
+		return;
+	sL_Prize5:
+		mes "[Kafra]";
+		mes "You've won the 5th prize.";
+		if(@Lotto == 1) getitem 516,50;//Items: Sweet_Potato,
+		if(@Lotto == 2) getitem 501,100;//Items: Red_Potion,
+		if(@Lotto == 3) getitem 501,200;//Items: Red_Potion,
+		if(@Lotto == 4) getitem 501,250;//Items: Red_Potion,
+		if(@Lotto == 5) getitem 501,300;//Items: Red_Potion,
 		return;
 
 sF_Spin:
@@ -1153,9 +1153,8 @@ aldeba_in.gat,81,166,4	script	Kafra Pavianee	117,{
 	mes "[Kafra Pavianne]";
 	mes "With complete service training and supervision, we are able to fully meet the needs of our customers.";
 	next;
-	menu "Buy a Kafra Pass",M_0,"What is a Kafra Pass",M_1,"Good Bye",M_3;
+	menu "Buy a Kafra Pass",-,"What is a Kafra Pass",M_1,"Good Bye",M_3,"I have a question...",M_4;
 	
-	M_0:
 		if(Zeny < 2000) goto sL_Zeny;
 		mes "[Kafra Pavianne]";
 		mes "Thank you for using our Kafra Service! Have a Nice Day!";
@@ -1188,6 +1187,19 @@ aldeba_in.gat,81,166,4	script	Kafra Pavianee	117,{
 		emotion 15;
 		cutin "kafra_01",255;
 		close;
+
+	M_4:
+		mes "[Kafra Pavianne]";
+		mes "Why? Is there something disturbing you?";
+		next;
+		mes "["+strcharinfo(0)+"]";
+		mes "No, but why is the sun not shining?";
+		next;
+		mes "[Kafra Pavianne]";
+		mes "You will only know, when enjoyment cease the guide to illumination.";
+		cutin "kafra_01",255;
+		close;
+
 }
 
 // Kafra Blossom -----------------------------------
@@ -1204,15 +1216,14 @@ aldeba_in.gat,83,244,4	script	Kafra Blossom	116,{
 	mes "Anyways... WEELLLLCOOMMME!!!~~ I am Kafra type ^3333ffBlossom^000000.";
 	mes "Please don't forget to continue using our Kafra Services, and ask for me, ^3333ffBlossom^000000!";
 	next;
-	menu "I'm an admirer of you~!",M_0,"Ehhaha",M_1;
+	menu "I'm an admirer of you~!",-,"Ehhaha",M_1;
 	
-	M_0:
 		mes "[Kafra Blossom]";
 		mes "Really! Thank you sooo much!! Here is... my... autograph...";
 		emotion 15;
 		next;
 		mes "[Kafra Blossom]";
-		mes "Don't bother to look in your Item Iventory for it.  It won't be there... tehehe... for my autograph will remail winthin your heart.";
+		mes "Don't bother to look in your Item Inventory for it.  It won't be there... tehehe... for my autograph will remain within your heart.";
 		emotion 33;
 		cutin "kafra_02",255;
 		close;
@@ -1228,7 +1239,7 @@ aldeba_in.gat,83,244,4	script	Kafra Blossom	116,{
 aldeba_in.gat,91,244,4	script	Kafra Curly Sue	112,{
 	cutin "kafra_06",2;
 	mes "[Kafra Curly Sue]";
-	mes "Hello, hello! I'm the youngest of all Kafra personel, the Kafra cutey....";
+	mes "Hello, hello! I'm the youngest of all Kafra personnel, the Kafra cutey....";
 	next;
 	mes "[Kafra Curly Sue]";
 	mes "I am Kafra Type 'Curly Sue'!!";
@@ -1236,9 +1247,8 @@ aldeba_in.gat,91,244,4	script	Kafra Curly Sue	112,{
 	mes "[Kafra Curly Sue]";
 	mes "I'm rather new so haven't been on the job all that long, but I am always doing my best!!";
 	next;
-	menu "Uh... where is your momy?",M_0,"End conversation",M_End;
+	menu "Uh... where is your mommy?",-,"End conversation",M_End;
 	
-	M_0:
 		mes "[Kafra Curly Sue]";
 		mes ".... Sob~sob~... WHAT?? I'm NOT some KID!!";
 		emotion 28;
@@ -1295,9 +1305,8 @@ aldebaran.gat,143,136,4	script	Clock Keeper	89,{
 	mes "[Clock Keeper]";
 	mes "It looks like you have an interest in this tower?";
 	next;
-	menu "About the Clock Tower.",M_0,"About the Committee of 'Heaven on Earth'.",M_1,"Quit.",M_End;
+	menu "About the Clock Tower.",-,"About the Committee of 'Heaven on Earth'.",M_1,"Quit.",M_End;
 	
-	M_0:
 		mes "[Clock Keeper]";
 		mes "Each floor of this tower is connected through a device called a 'Warp'.";
 		mes "Most of these warps are standard warps but some of them are 'Random Warps'.";
@@ -1306,7 +1315,7 @@ aldebaran.gat,143,136,4	script	Clock Keeper	89,{
 		mes "You should be careful with 'Random Warps' because they will transport you to a random location.";
 		next;
 		mes "[Clock Keeper]";
-		mes "I know you wouldn't want to get seperated from you friends while you're battling monsters.";
+		mes "I know you wouldn't want to get separated from you friends while you're battling monsters.";
 		next;
 		mes "[Clock Keeper]";
 		mes "Random warps are shown as green dots on the Mini-Map so keep your eyes on the Mini-Map to avoid them.";
@@ -1318,9 +1327,8 @@ aldebaran.gat,143,136,4	script	Clock Keeper	89,{
 		mes "[Clock Keeper]";
 		mes "Have you ever heard of the Committee of 'Heaven on Earth'?!";
 		next;
-		menu "Yup, I have",sM_0,"What are they?",sM_1;
+		menu "Yup, I have",-,"What are they?",sM_1;
 		
-		sM_0:
 			mes "[Clock Keeper]";
 			mes "Muhahahaha! Good, good!  I'm so glad that our reputation has spread throughout Rune-Midgard.";
 			mes "What a great day to meet an adventurer like you! I would like to present this to you.....";
@@ -1357,9 +1365,8 @@ c_tower3.gat,10,249,4	script	Gatekeeper	84,{
 	mes "You may not enter.";
 	mes "Please go back to where you're from.";
 	next;
-	menu "About Clock Tower",M_0,"About the 4th Floor",M_1,"Move to the 4th Floor",M_2,"End mesue",M_End;
+	menu "About Clock Tower",-,"About the 4th Floor",M_1,"Move to the 4th Floor",M_2,"End mesue",M_End;
 
-	M_0:
 		mes "[Gatekeeper Riku]";
 		mes "Homeland of Alchemy, Aldebaran!";
 		mes "Long Time ago, there were";
@@ -1373,7 +1380,7 @@ c_tower3.gat,10,249,4	script	Gatekeeper	84,{
 		mes "This venerable architecture is their masterpiece.";
 		mes "I assume you would feel something unusual";
 		mes "While on the way to this floor,";
-		mes "Every feature of This Clocktower ";
+		mes "Every feature of This Clock tower ";
 		next;
 		mes "[Gatekeeper Riku]";
 		mes "Consists of Mysterious Ancient Magics.";
@@ -1402,7 +1409,7 @@ c_tower3.gat,10,249,4	script	Gatekeeper	84,{
 		mes "The Key is the Intensiveness of Ancient Alchemy,";
 		mes "By hearsay When used once,";
 		mes "It will be released from being spelled";
-		mes "And be disapeared.";
+		mes "And be disappeared.";
 		next;
 		mes "[Gatekeeper Riku]";
 		mes "If that key comes into your possession, please show it to me.";
@@ -1416,12 +1423,12 @@ c_tower3.gat,10,249,4	script	Gatekeeper	84,{
 	M_2:
 		mes "[Gatekeeper Riku]";
 		if(countitem(7026) < 1) goto L_Check_Key;
+		delitem 7026,1;
 		mes "Hmm! I already felt that you are not an Ordinary person,";
 		mes "Now it seems to be successful in Speculation.";
 		mes "Please, You may enter.";
 		mes "May God bless you ..";
 		next;
-		delitem 7026,1;
 		warp "c_tower4.gat",185,44;
 		close;
 
@@ -1451,9 +1458,8 @@ alde_dun03.gat,264,16,4	script	Gatekeeper	101,{
 	mes "You can't go through from B4th Floor,";
 	mes "Please go back.";
 	next;
-	menu "About Clock Tower",M_0,"About B4th Floor",M_1,"Move to the B4th Floor",M_2,"End mesue",M_End;
+	menu "About Clock Tower",-,"About B4th Floor",M_1,"Move to the B4th Floor",M_2,"End mesue",M_End;
 
-	M_0:
 		mes "[Gatekeeper Boy]";
 		mes "Homeland of Alchemy, Aldebaran!";
 		mes "Long Time ago, there were";
@@ -1468,7 +1474,7 @@ alde_dun03.gat,264,16,4	script	Gatekeeper	101,{
 		mes "their masterpiece.";
 		mes "I assume you would feel something unusual";
 		mes "While on the way to this floor,";
-		mes "Every feature of This Clocktower";
+		mes "Every feature of This Clock tower";
 		next;
 		mes "[Gatekeeper Boy]";
 		mes "Consists of Mysterious Ancient Magics.";
@@ -1498,7 +1504,7 @@ alde_dun03.gat,264,16,4	script	Gatekeeper	101,{
 		mes "The Key is the Intensiveness of Ancient Alchemy,";
 		mes "By hearsay When used once,";
 		mes "It will be released from being spelled";
-		mes "And be disapeared.";
+		mes "And be disappeared.";
 		next;
 		mes "[Gatekeeper Boy]";
 		mes "If that key comes into your possession, please show it to me.";
@@ -1512,12 +1518,12 @@ alde_dun03.gat,264,16,4	script	Gatekeeper	101,{
 	M_2:
 		mes "[Gatekeeper Boy]";
 		if(countitem(7027) < 1) goto L_Check_Key;
+		delitem 7027,1;
 		mes "Hmm! I already felt that you are not an Ordinary person,";
 		mes "Now it seems to be successful in Speculation.";
 		mes "Please,You may enter.";
 		mes "May God bless you ..";
 		next;
-		delitem 7027,1;
 		warp "alde_dun04.gat",79,267;
 		close;
 

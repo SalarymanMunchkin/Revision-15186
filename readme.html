@@ -1,199 +1,349 @@
-<html>
-<head><title>eAthena 1.0 Final Readme</title>
-<meta http-equiv="expires" content="-1">
-<meta http-equiv="pragma" content="no-cache" />
-<meta name="author" content="eAthena Development Team">
-<meta name="description" content="eAthena, ro server emulator">
-<meta name="keywords" content="eathena, ro, ragnarok online, server emulator, server software">
-<link href="./readme/1final.css" media="screen" rel="stylesheet" type="text/css">
-</head>
+<html><head><link rel="stylesheet" type="text/css" href="./readme/readme.css"><title>eAthena - Introduction</title></head>
+
 <body>
-<table width="100%" cellpadding="0" cellspacing="0" border="0">
+<div id="dleftbg">
+</div>
+<div id="drightbg">
+</div>
+<div id="canvas" align="center">
+<table cellspacing="0" cellpadding="0" border="0" id="ea" align="center">
 	<tr>
-		<td height="82" align="left" colspan="19">
-			<img src="./readme/banner.jpg" width="393" height="82">
+		<td id="leftborder" valign="top">
+			<table cellspacing="0" cellpadding="0" border="0">
+				<tr>
+					<td id="leftborderspacer">
+					</td>
+				</tr>
+				<tr>
+					<td valign="top">
+					<img src="./readme/images/leftborder.gif">
+					</td>
+				</tr>
+			</table>
 		</td>
-	</tr>
-	<tr height="36">
-		<td width="175" height="36">
-			<img src="./readme/readmelefttab.jpg" width="175" height="36">
-		</td>
-		<td height="36" background="./readme/whttabbg.jpg">
-			<b>Intro</b><font color="#698069">duction</font>
+		<td id="middle" valign="top">
+			<table cellspacing="0" cellpadding="0" border="0" valign="top">
+				<tr>
+					<td id="logo" valign="top">
+						<table class="w800" cellspacing="0" cellpadding="0" border="0">
+							<tr>
+								<td valign="top">
+									<table class="w800" cellspacing="0" cellpadding="0" border="0" height="100%">
+										<tr>
+											<td rowspan="4">
+												<img src="./readme/images/chara.gif" width="366" height="274">
+											</td>
+											<td rowspan="4" width="129">
+											</td>
+											<td colspan="2" width="305" height="51" align="right">
+												<img src="./readme/images/banner.gif" width="305" height="51">
+											</td>
+										</tr>
+										<tr>
+											<td id="title" colspan="2" align="right">
+												Introduction
+											</td>
+										</tr>
+										<tr>
+											<td height="81" colspan="2">
+											</td>
+										</tr>
+										<tr>
+											<td class="navi" align="right">
+												Introduction<br>
+												<a href="./readme/changelog.html">Changelog</a><br>
+												<a href="./readme/features.html">Features</a><br>
+												<a href="./readme/npcfeatures.html">NPC Features</a>
+
+											</td>
+											<td class="navi" align="right">
+												<a href="./readme/setup.html">Setup</a><br>
+												<a href="./readme/gmcommands.html">GM Commands</a><br>
+												<a href="./readme/faq.html">FAQ</a><br>
+												<a href="./readme/resources.html">Resources</a>
+											</td>
+										</tr>
+									</table>
+								</td>
+							</tr>
+							<tr>
+								<td id="btmborder">
+									<table class="w800" cellspacing="0" cellpadding="0" border="0" height="2">
+										<tr>
+											<td id="leftbtmborder"">
+											</td>
+											<td id="midbtmborder"">
+												<img src="./readme/images/btmborder.gif" width="44" height="2">
+											</td>
+											<td id="rightbtmborder">
+											</td>
+										</tr>
+									</table>
+								</td>
+							</tr>
+							<tr>
+								<td id="content">
+									<table class="w800" cellspacing="0" cellpadding="0" border="0" height="100%">
+										<tr>
+											<td id="lefttext" valign="top">
+<h1>eAthena SVN series</h1>
+eAthena is an open-source Ragnarok Online server emulator. It's written in C, but we are working on a C++ version. Although it is cross-platform, we only officially support Win32 and Linux.
+<br>
+<br>eAthena is licensed under the GPL, so please give us credit if you use our code.
+<br>Our SVN (<a href="http://tortoisesvn.tigris.org/download.html">You may download TortoiseSVN here to access our SVN</a>) is located at <a href="http://66.118.142.23:8080/svn/ea/">http://66.118.142.23:8080/svn/ea/</a>. SVN stands for Subversion, which is similar to the commonly used CVS.
+<br>
+<br>P.S. If you had a hard time loading this readme, please use <a href="http://www.getfirefox.com">Firefox</a>.
+
+											</td>
+											<td id="midtext">
+											</td>
+											<td id="righttext" valign="top">
+<h1>The eAthena Team</h1>
+Here are our current developers. We have had many past developers, and if you come across this, please let us know ^_^.<br>
+
+<b>Developers</b>
+<table class="right">
+	<tr>
+		<td>
+			Wallex
 		</td>
 		<td>
-			<img src="./readme/readmerighttab.jpg" width="18" height="36">
-		</td>
-		<td height="36" background="./readme/grntabbg.jpg" class="tab">
-			<a href="./readme/changelog.html"><b>Change</b><font color="#698069">log</font></a>
+			Lupus
 		</td>
 		<td>
-			<img src="./readme/btwngreentab.jpg" width="20" height="36">
+			DracoRPG
 		</td>
-		<td height="36" background="./readme/grntabbg.jpg" class="tab">
-			<a href="./readme/features.html"><b>Features</b></a>
+	</tr>
+	<tr>
+		<td>
+			MasterOfMuppets
+		</td>
+
+		<td>
+			Fredzilla
 		</td>
 		<td>
-			<img src="./readme/btwngreentab.jpg" width="20" height="36">
+			Kayla
 		</td>
-		<td height="36" background="./readme/grntabbg.jpg" class="tab">
-			<a href="./readme/Npcfeatures.html"><b>Npc</b><font color="#698069">features</font></a>
+	</tr>
+	<tr>
+		<td>
+			Kevin
 		</td>
 		<td>
-			<img src="./readme/btwngreentab.jpg" width="20" height="36">
-		</td>
-		<td height="36" background="./readme/grntabbg.jpg" class="tab">
-			<a href="./readme/settingup.html"><b>Setting</b><font color="#698069">up</font></a>
+			Shinomori
 		</td>
 		<td>
-			<img src="./readme/btwngreentab.jpg" width="20" height="36">
+			Clownphobia(Cuteboi)
 		</td>
-		<td height="36" background="./readme/grntabbg.jpg" class="tab">
-			<a href="./readme/gmcommands.html"><b>GM</b><font color="#698069">commands</font></a>
+	</tr>
+	<tr>
+		<td>
+			LuzZza
 		</td>
 		<td>
-			<img src="./readme/btwngreentab.jpg" width="20" height="36">
-		</td>
-		<td height="36" background="./readme/grntabbg.jpg" class="tab">
-			<a href="./readme/faq.html"><b>FAQ</b></a>
+			Evera
 		</td>
 		<td>
-			<img src="./readme/btwngreentab.jpg" width="20" height="36">
+			Nexon
 		</td>
-		<td height="36" background="./readme/grntabbg.jpg" class="tab">
-			<a href="./readme/support.html"><b>Support</b><font color="#698069">sites</font></a>
+	</tr>
+	<tr>
+		<td>
+			Celest
 		</td>
 		<td>
-			<img src="./readme/grntabfinalright.jpg" width="12" height="36">
-		</td>
-		<td background="./readme/topcontentbg.jpg" width="100%" height="37" rowspan="2">
-		</td>
-		<td rowspan="3">
-			<img src="./readme/toprightcontent.jpg" width="12" height="46">
-		</td>
-	</tr>
-	<tr height="1">
-		<td colspan="19" bgcolor="#FCFCFC">
-		</td>
-	</tr>
-	<tr height="9">
-		<td colspan="19" bgcolor="#FCFCFC">
-		</td>
-	</tr>
-	<tr>
-		<td colspan="18" bgcolor="#FCFCFC" class="header">
-			Thank you for downloading eAthena 1.0.0
-		</td>
-		<td background="./readme/rightcontentbg.jpg" width="12" rowspan="2">
-		</td>
-	</tr>
-	<tr>
-		<td colspan="18" bgcolor="#FCFCFC" class="content">
-eAthena is an emulator for Ragnarok Online servers.
-It's written in C, and is
-cross-platform. The officially supported platforms are Win32 and Linux.
-<p>We hope you enjoy using it!</p>
-<p>eAthena is licensed under the GPL, meaning it's open source.<br>
-Anonymous eAthena SVN access is available at http://dev.deltaanime.net:8080/svnroot/eathena, we do <b>not</b> support it though.</p>
-		</td>
-	</tr>
-	<tr>
-		<td colspan="18" bgcolor="#FCFCFC" class="header">
-			The eAthena Development Team
-		</td>
-		<td background="./readme/rightcontentbg.jpg" width="12" rowspan="2">
-		</td>
-	</tr>
-	<tr>
-		<td colspan="18" bgcolor="#FCFCFC" class="content">
-eAthena is based on the original
-Athena, by the
-Japanese Development Team.<br>
-A big thanks to them for working hard on Athena.<br>
-            <br>
-Wizputer<br>
-Aria<br>
-Mugendai<br>
-Nana<br>
-Shinigami<br>
-Darkchild<br>
-Lupus<br>
-moonsoul<br>
-MouseJstr<br>
-kobra_k88<br>
-Codemaster<br>
-Davidsiaw<br>
-Mass Zero<br>
-MC_Cameri<br>
-Spira<br>
-Nasedo<br>
-Celest<br>
-		</td>
-	</tr>
-	<tr>
-		<td colspan="18" bgcolor="#FCFCFC" class="header">
-			Special Thanks
-		</td>
-		<td background="./readme/rightcontentbg.jpg" width="12" rowspan="2">
-		</td>
-	</tr>
-	<tr>
-		<td colspan="18" bgcolor="#FCFCFC" class="content">
-The eAthena development team would
-like to specially
-thank:<br>
-            <br>
-The Japanese Development Team. A big thanks to them for
-working hard on Athena which eAthena is based on.<br>
-            <br>
-RoVeRT, our ex-developer. eAthena wouldn't have this many
-features without him!<br>
-            <br>
-sara-chan, who had also contributed alot to the development
-of eAthena! Thanks!<br>
-            <br>
-AppleGirl, now ex-developer, previously lead the team and contributed alot of work.<br>
-            <br>
-Yor, for his work he did on login and char servers, not to mention
-ladmin.<br>
-            <br>
-Aria, for making this wonderful readme layout.<br>
-	    <br>
-Gravity, for making Ragnarok Online. eAthena wouldn't even
-exist if it wasn't for them!<br>
-            <br>
-ASB for hosting our forum section :)<br>
-            <br>
-DeltaAnime for hosting our official forums among other things :)<br>
-            <br>
-Ketonom for putting together a nice Win32 installer for the noobs and
-converting mob and item databases to sql.<br>
-            <br>
-            <br>
-            <br>
-            <br>
-            <br>
-And others who gave continuously endless support to eAthena!<br>
-		</td>
-	</tr>
-	<tr>
-		<td colspan="18" background="./readme/btmcontentbg.jpg" height="12" align="left">
-			<img src="./readme/btmleftcontent.jpg" height="12" width="13">
+			Wizputer
 		</td>
 		<td>
-			<img src="./readme/btmrightcontent.jpg" height="12 width="12">
+            Valaris
 		</td>
 	</tr>
 	<tr>
-		<td height="10">
+		<td>
+			Lance
 		</td>
-	</tr>
-	<tr>
-		<td colspan="19" bgcolor="#E2F0E2">
-			&copy; Content Copyright 2004 eAthena Development team<br>
-			&copy; Design Copyright 2004 Evera
+		<td>
+			Komurka
+		</td>
+		<td>
+            
 		</td>
 	</tr>
 </table>
+<br>
+<b>Mods/Admins</b>
+<table class="right">
+	<tr>
+		<td>
+			Massdriller
+		</td>
+		<td>
+			Deviant
+		</td>
+		<td>
+			Delta
+		</td>
+	</tr>
+	<tr>
+		<td>
+			Manipulator
+		</td>
+		<td>
+			SantaPoring
+		</td>
+		<td>
+			Davidchak
+		</td>
+	</tr>
+    <tr>
+        <td>
+            Valaris
+        </td><td></td><td></td>
+    </tr>
+	<tr>
+		<td>
+		</td>
+	</tr>
+</table>
+<br>
+<b>Ex-Developers and Honorable Mentions</b>
+<table class="right">
+	<tr>
+		<td>
+			RoVeRT
+		</td>
+		<td>
+			AppleGirl
+		</td>
+		<td>
+			Akaru/Hikaru
+		</td>
+	</tr>
+	<tr>
+		<td>
+			Darkchild
+		</td>
+		<td>
+			Kalaspuff
+		</td>
+		<td>
+			Ajarn
+		</td>
+	</tr>
+	<tr>
+		<td>
+			Fritz
+		</td>
+		<td>
+			Aria
+		</td>
+		<td>
+			Mass Zero
+		</td>
+	</tr>
+	<tr>
+		<td>
+			Nana
+		</td>
+		<td>
+			Shinigami
+		</td>
+		<td>
+			Moonsoul
+		</td>
+	</tr>
+	<tr>
+		<td>
+			Kobra_k88
+		</td>
+		<td>
+			Codemaster
+		</td>
+		<td>
+			Davidsiaw
+		</td>
+	</tr>
+	<tr>
+		<td>
+			MC_Cameri
+		</td>
+		<td>
+			Spira
+		</td>
+		<td>
+			Lord
+		</td>
+	</tr>
+	<tr>
+		<td>
+			Yor
+		</td>
+		<td>
+			Sara-chan
+		</td>
+		<td>
+			Mikage
+		</td>
+	</tr>
+	<tr>
+		<td>
+			Ajs15822
+		</td>
+		<td>
+			Cyberghost
+		</td>
+		<td>
+			Azndragon
+		</td>
+	</tr>
+	<tr>
+		<td>
+			Nasedo
+		</td>
+		<td>
+			Sirius
+		</td>
+	</tr>
+</table>
+                                                <br />
+                                                    <br />
+                                                </strong>
+			
+											</td>
+										</tr>
+										<tr>
+											<td colspan="3">
+												&copy; Content Copyright 2005 eAthena Development Team/Evera<br>
+												&copy; Design Copyright 2005 Evera
+											</td>
+										</tr>
+									</table>
+								</td>
+							</tr>			
+						</table>
+
+</table>
+		<td id="rightborder" valign="top">
+			<table cellspacing="0" cellpadding="0" border="0">
+				<tr>
+					<td id="rightborderspacer">
+					</td>
+				</tr>
+				<tr>
+					<td valign="top">
+					<img src="./readme/images/rightborder.gif">
+					</td>
+				</tr>
+			</table>
+		</td>
+</div>
+					</td>
+				</tr>
+			</table>
+		</td>
+
+	</tr>
 </body>
 </html>
+

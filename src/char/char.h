@@ -1,7 +1,13 @@
-// $Id: char.h,v 1.1.1.1 2004/09/10 17:26:50 MagicalTux Exp $
+// Copyright (c) Athena Dev Teams - Licensed under GNU GPL
+// For more information, see LICENCE in the main folder
+
 #ifndef _CHAR_H_
 #define _CHAR_H_
 
+#include "../common/mmo.h"
+#include "../common/mapindex.h"
+
+#define START_CHAR_NUM 150000
 #define MAX_MAP_SERVERS 30
 
 #define CHAR_CONF_NAME	"conf/char_athena.conf"
@@ -14,7 +20,7 @@ struct mmo_map_server{
 	long ip;
 	short port;
 	int users;
-	char map[MAX_MAP_PER_SERVER][16];
+	unsigned short map[MAX_MAP_PER_SERVER];
 };
 
 int search_character_index(char* character_name);
@@ -29,6 +35,10 @@ int char_child(int parent_id, int child_id);
 
 int char_log(char *fmt, ...);
 
+int request_accreg2(int account_id, int char_id);
+int char_parse_Registry(int account_id, int char_id, unsigned char *buf, int len);
+int save_accreg2(unsigned char *buf, int len);
+int char_account_reg_reply(int fd,int account_id,int char_id);
 extern int autosave_interval;
 extern char db_path[];
 

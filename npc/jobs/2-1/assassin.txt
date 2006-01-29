@@ -3,7 +3,7 @@
 //===== By: ================================================== 
 //= kobra_k88
 //===== Current Version: ===================================== 
-//= 1.2
+//= 1.6
 //===== Compatible With: ===================================== 
 //= eAthena RC4
 //===== Description: ========================================= 
@@ -19,6 +19,12 @@
 //= without controls.  Changed the doevent that triggers him to an
 //= addtimer and that seemed make the prob. go away[kobra_k88]
 //= 1.2 Fixed WRONG skillpoint check! [Lupus]
+//= 1.2b Fixed missing commands and typos [Lupus]
+//= 1.3 Baby class Support added [Lupus]
+//= 1.5 Fixed possible EXP abuse [Lupus]
+//= 1.6 Added a func which prevent advanced classes passing
+//= 2nd Job Quests again. It also guides adv classes where
+//= to go. [Lupus]
 //============================================================ 
 
 
@@ -28,59 +34,10 @@
 //****************************************************************************//
 
 in_moc_16.gat,19,33,4	script	Guildsman	55,{
-	if(Class==Job_Assassin) goto L_JobSin;
-	mes "[Angry looking man]";
-	if(Class==Job_Thief) goto L_Thief;
-	if(callfunc("Is_Sword_Class")) goto L_JobSwo;
-	if(callfunc("Is_Magic_Class")) goto L_JobMag;
-	if(callfunc("Is_Bow_Class")) goto L_JobArch;
-	if(callfunc("Is_Holy_Class")) goto L_JobAco;
-	if(callfunc("Is_Merc_Class")) goto L_JobMerc;
-	if(callfunc("Is_Thief_Class")) goto L_JobOther;
+	callfunc "F_BlockHigh",30,"Thief High",36,"Assassin Cross","Assassin Huey";
 
-L_JobNov:
-	mes "....HEY Novice!!! GET out of here now!! I won't be held responsible if anything bad happens to you.......";
-	emotion 0;
-	close;
-L_JobSwo:
-	mes "....What are you doing here???";
-	emotion 1;
-	next;
-	mes "[Angry looking man]";
-	mes "Doing what you're ordered to do eh?........ You guys are nothing more than dogs that listen to their owners.............";
-	emotion 32;
-	close;
-L_JobMag:
-	mes "...What's a mage like you doing here? You should be paying more attention to your training.....";
-	emotion 20;
-	close;
-L_JobArch:
-	mes "Uh.... you're one of those people with bows right? Sorry but there are no cute pets here for u to kill..........";
-	emotion 4;
-	next;
-	mes "[Angry looking man]";
-	mes "Wait...... You're not here to create trouble eh!!? ....LEAVE AT ONCE!!";
-	emotion 0;
-	close;
-L_JobAco:
-	mes "...Oh God's little helper..... What are you doing down in a dreadful place like this?";
-	mes "Trust me, you're not going to find any salvation here........ why don't you just run along ok?........";
-	emotion 20;
-	close;
-L_JobMerc:
-	mes ".... What the??? Do you have any idea where you are??...... GREEDY SCAMMERS like you are not welcome here!!";
-	emotion 29;
-	close;
-L_JobOther:
-	mes ".... Hmm.... although you're not an Assassin or Thief... I have to say I like your sense of style.";
-	close;
-L_JobSin:
-	mes "[Assassin Huey]";
-	mes "Oohh, its you.  You're...." + strcharinfo(0) + " right?";
-	next;
-	mes "[Assassin Huey]";
-	mes "Too bad there's nothing to do right now.  You should go train more.  Bye.";
-	close;
+	if(BaseJob==Job_Thief) goto L_Thief;
+	callfunc "Ass_check";
 
 L_Thief:
 	if(JobLevel >= 40) goto L_Start;
@@ -109,7 +66,7 @@ L_Start:
 
 	M_0:
 		mes "[Angry looking man]";
-		mes "It's been a long time since we've recieved any Assassin candidates..... anyhow let me send you ^5533FFAssassin 'Khai'^000000.";
+		mes "It's been a long time since we've recieved any Assassin candidates..... anyhow let me send you ^5533FFAssassin 'Kai'^000000.";
 		mes "He'll take care of the registration process.";
 		enablenpc "Assassin Kai#1";
 		disablenpc "Assassin Kai#2";
@@ -159,7 +116,7 @@ L_Change:
 	mes "[Assassin Huey]";
 	mes "Very well done, you are now offically an Assassin.  Although you are free to visit us at anytime..............";
 	setlook 7,0;
-	jobchange Job_Assassin;
+	callfunc "Job_Change",Job_Assassin;
 	callfunc "F_ClearJobVar";		// clears all job variables for the current player
 	set kaitrig, 0;
 	next;
@@ -480,7 +437,7 @@ sF_Quiz:
 		mes "The Katar is one of the strongest weapons a Assassin can use.";
 		next;
 		mes "[Assassin Kai]";
-		mes "I ^554433wouldn't want to raise a Rohda Frog as pet^000000, and neither would anyone else for that matter.";
+		mes "I ^554433wouldn't want to raise a Roda Frog as pet^000000, and neither would anyone else for that matter.";
 		next;
 		mes "[Assassin Kai]";
 		mes "^554433Fire^000000 is effective against ^554433ground type monsters^000000.";
@@ -490,7 +447,7 @@ sF_Quiz:
 		return;
 	sL_Quiz3:
 		mes "[Assassin Kai]";
-		mes "The ^554433Elder willow card adds to your intelligence^000000.";
+		mes "The ^554433Elder Willow Card adds to your intelligence^000000.";
 		next;
 		mes "[Assassin Kai]";
 		mes "We Assassins specialize in the ability to dodge and attack.  Our defense however, is very poor.";
@@ -508,7 +465,7 @@ sF_Quiz:
 		mes "Stealing mushrooms..... what fond memories I had of those orange gooey mushrooms.....";
 		next;
 		mes "[Assassin Kai]";
-		mes "The ^554433Baphomet Jr. card adds 3 agility and 1 critical^000000 to your stats";
+		mes "The ^554433Baphomet Jr. Card adds 3 agility and 1 critical^000000 to your stats";
 		next;
 		mes "[Assassin Kai]";
 		mes "We Assassins have the highest agility of all the other classes.  We can get a ^5533FFmaximum of 10 extra points in agility^000000.";
@@ -910,7 +867,7 @@ L_Test:
 		mes "[Nameless One]";
 		mes "5. Which card has ^FF3355nothing^000000 to do with ^5533FFagility^000000?";
 		next;
-		menu "Baphomet Jr card",sM_5c, "Whisper Card",-, "Male Thief Bug card",sM_5c, "Chonchon card",sM_5c;
+		menu "Baphomet Jr Card",sM_5c, "Whisper Card",-, "Male Thief Bug Card",sM_5c, "Chonchon Card",sM_5c;
 
 			set @score, @score + 10;
 		sM_5c:
@@ -950,7 +907,7 @@ L_Test:
 		mes "[Nameless One]";
 		mes "10. What card listed below is useless to an Assassin?";
 		next; 
-		menu "Ghostring card",sM_10c, "Elder willow card",-, "Skeleton Soldier card",sM_10c, "Kobold card",sM_10c;
+		menu "Ghostring Card",sM_10c, "Elder Willow Card",-, "Skeleton Soldier Card",sM_10c, "Kobold Card",sM_10c;
 
 			set @score, @score + 10;
 		sM_10c:
@@ -980,7 +937,7 @@ L_Score:
 		mes "Since you don't seem to have an ounce of intelligence, I will give you some tips.......";
 		next;
 		mes "[Nameless One]";
-		mes "Speak with Assassin 'Khai', he may be able to help you out.  If not try to interperet this code:";
+		mes "Speak with Assassin 'Kai', he may be able to help you out.  If not try to interperet this code:";
 		mes "^5533FFwww.emperium.org......^000000";
 		next;
 		mes "[Nameless One]";
@@ -1348,7 +1305,7 @@ in_moc_16.gat,1,1,1	script	SinTest2_2	-1,{
 	end;
 OnMobDead:
 	stopnpctimer "TimerSin";
-	announce ". . . You engaged a target without permission!  You have failed the test!",8;
+	areaannounce "in_moc_16.gat", 64, 46, 111, 105, ". . . You engaged a target without permission! You have failed the test!",8;
 	enablenpc "Thomas";
 	addtimer 3000, "TimerSin::OnTimer188000";
 	end;
@@ -1601,8 +1558,7 @@ OnTouch:
 	disablenpc "Nameless One#End";
 	disablenpc "Barkadi#End";
 	disablenpc "Observer#End";
-	disablenpc "Dante#End";
-	disablenpc "Gail#End";
+	disablenpc "Thomas#End";
 	savepoint "in_moc_16.gat", 18, 28;
 	close2;
 	warp "in_moc_16.gat", 18, 28;
@@ -1901,3 +1857,14 @@ in_moc_16.gat,156,79,1	script	Barcardi#End	725,{end;}
 in_moc_16.gat,156,77,1	script	Observer#End	55,{end;}
 in_moc_16.gat,156,75,1	script	Thomas#End	118,{end;}
 
+
+//==============================================================================
+// mapflag
+//==============================================================================
+in_moc_16.gat	mapflag	nomemo
+in_moc_16.gat	mapflag	noteleport
+in_moc_16.gat	mapflag	nosave	SavePoint
+in_moc_16.gat	mapflag	nopenalty
+in_moc_16.gat	mapflag	nobranch
+in_moc_16.gat	mapflag	noexp
+in_moc_16.gat	mapflag	noloot

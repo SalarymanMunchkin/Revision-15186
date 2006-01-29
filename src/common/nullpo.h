@@ -1,3 +1,6 @@
+// Copyright (c) Athena Dev Teams - Licensed under GNU GPL
+// For more information, see LICENCE in the main folder
+
 #ifndef _NULLPO_H_
 #define _NULLPO_H_
 
@@ -6,13 +9,14 @@
 		// 全体のスイッチを宣言しているヘッダがあれば
 		// そこに移動していただけると
 
-
+#ifndef __NETBSD__
 #if __STDC_VERSION__ < 199901L
 # if __GNUC__ >= 2
 #  define __func__ __FUNCTION__
 # else
 #  define __func__ ""
 # endif
+#endif
 #endif
 
 #ifdef _WIN32

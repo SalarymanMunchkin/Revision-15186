@@ -1,25 +1,22 @@
-// $Id: itemdb.c,v 1.3 2004/09/25 05:32:18 MouseJstr Exp $
+// Copyright (c) Athena Dev Teams - Licensed under GNU GPL
+// For more information, see LICENCE in the main folder
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "db.h"
-#include "grfio.h"
-#include "nullpo.h"
-#include "malloc.h"
+#include "../common/nullpo.h"
+#include "../common/malloc.h"
+#include "../common/showmsg.h"
 #include "map.h"
+#include "grfio.h"
 #include "battle.h"
 #include "itemdb.h"
 #include "script.h"
 #include "pc.h"
-#include "showmsg.h"
-
-#ifdef MEMWATCH
-#include "memwatch.h"
-#endif
 
 #define MAX_RANDITEM	2000
-
+#define MAX_ITEMGROUP	32
 // ** ITEMDB_OVERRIDE_NAME_VERBOSE **
 //   定義すると、itemdb.txtとgrfで名前が異なる場合、表示します.
 //#define ITEMDB_OVERRIDE_NAME_VERBOSE	1
@@ -30,36 +27,19 @@ static struct random_item_data blue_box[MAX_RANDITEM], violet_box[MAX_RANDITEM],
 static int blue_box_count=0, violet_box_count=0, card_album_count=0, gift_box_count=0, scroll_count=0, finding_ore_count = 0;
 static int blue_box_default=0, violet_box_default=0, card_album_default=0, gift_box_default=0, scroll_default=0, finding_ore_default = 0;
 
-// Function declarations
-
-static void itemdb_read(void);
-static int itemdb_readdb(void);
-#ifndef TXT_ONLY
-static int itemdb_read_sqldb(void);
-#endif /* not TXT_ONLY */
-static int itemdb_read_randomitem();
-static int itemdb_read_itemavail(void);
-static int itemdb_read_itemnametable(void);
-static int itemdb_read_itemslottable(void);
-static int itemdb_read_itemslotcounttable(void);
-static int itemdb_read_cardillustnametable(void);
-static int itemdb_read_noequip(void);
-static int itemdb_read_norefine(void);
-void itemdb_reload(void);
+static struct item_group itemgroup_db[MAX_ITEMGROUP];
 
 /*==========================================
  * 名前で検索用
  *------------------------------------------
  */
 // name = item alias, so we should find items aliases first. if not found then look for "jname" (full name)
-int itemdb_searchname_sub(void *key,void *data,va_list ap)
+int itemdb_searchname_sub(DBKey key,void *data,va_list ap)
 {
 	struct item_data *item=(struct item_data *)data,**dst;
 	char *str;
 	str=va_arg(ap,char *);
 	dst=va_arg(ap,struct item_data **);
-//	if( strcmpi(item->name,str)==0 || strcmp(item->jname,str)==0 ||
-//		memcmp(item->name,str,24)==0 || memcmp(item->jname,str,24)==0 )
 	if( strcmpi(item->name,str)==0 ) //by lupus
 		*dst=item;
 	return 0;
@@ -69,7 +49,7 @@ int itemdb_searchname_sub(void *key,void *data,va_list ap)
  * 名前で検索用
  *------------------------------------------
  */
-int itemdb_searchjname_sub(void *key,void *data,va_list ap)
+int itemdb_searchjname_sub(int key,void *data,va_list ap)
 {
 	struct item_data *item=(struct item_data *)data,**dst;
 	char *str;
@@ -86,7 +66,7 @@ int itemdb_searchjname_sub(void *key,void *data,va_list ap)
 struct item_data* itemdb_searchname(const char *str)
 {
 	struct item_data *item=NULL;
-	numdb_foreach(item_db,itemdb_searchname_sub,str,&item);
+	item_db->foreach(item_db,itemdb_searchname_sub,str,&item);
 	return item;
 }
 
@@ -132,39 +112,106 @@ int itemdb_searchrandomid(int flags)
 }
 
 /*==========================================
+ *
+ *------------------------------------------
+ */
+int itemdb_group (int nameid)
+{
+	int i, j;
+	for (i=0; i < MAX_ITEMGROUP; i++) {
+		for (j=0; j < itemgroup_db[i].qty && itemgroup_db[i].id[j]; j++) {
+			if (itemgroup_db[i].id[j] == nameid)
+				return i;
+		}
+	}
+	return -1;
+}
+int itemdb_searchrandomgroup (int groupid)
+{
+	if (groupid < 0 || groupid >= MAX_ITEMGROUP ||
+		itemgroup_db[groupid].qty == 0 || itemgroup_db[groupid].id[0] == 0)
+		return 0;
+	
+	return itemgroup_db[groupid].id[ rand()%itemgroup_db[groupid].qty ];
+}
+
+/*==========================================
  * DBの存在確認
  *------------------------------------------
  */
 struct item_data* itemdb_exists(int nameid)
 {
-	return (struct item_data *) numdb_search(item_db,nameid);
+	return idb_get(item_db,nameid);
 }
+
 /*==========================================
- * DBの検索
+ * Converts the jobid from the format in itemdb 
+ * to the format used by the map server. [Skotlex]
  *------------------------------------------
  */
-struct item_data* itemdb_search(int nameid)
+static void itemdb_jobid2mapid(unsigned short *bclass, int jobmask)
 {
-	struct item_data *id;
+	int i;
+	bclass[0]= bclass[1]= bclass[2]= 0;
+	//Base classes
+	for (i = JOB_NOVICE; i <= JOB_THIEF; i++)
+	{
+		if (jobmask & 1<<i)
+			bclass[0] |= 1<<(MAPID_NOVICE+i);
+	}
+	//2-1 classes
+	if (jobmask & 1<<JOB_KNIGHT)
+		bclass[1] |= 1<<MAPID_SWORDMAN;
+	if (jobmask & 1<<JOB_PRIEST)
+		bclass[1] |= 1<<MAPID_ACOLYTE;
+	if (jobmask & 1<<JOB_WIZARD)
+		bclass[1] |= 1<<MAPID_MAGE;
+	if (jobmask & 1<<JOB_BLACKSMITH)
+		bclass[1] |= 1<<MAPID_MERCHANT;
+	if (jobmask & 1<<JOB_HUNTER)
+		bclass[1] |= 1<<MAPID_ARCHER;
+	if (jobmask & 1<<JOB_ASSASSIN)
+		bclass[1] |= 1<<MAPID_THIEF;
+	//2-2 classes
+	if (jobmask & 1<<JOB_CRUSADER)
+		bclass[2] |= 1<<MAPID_SWORDMAN;
+	if (jobmask & 1<<JOB_MONK)
+		bclass[2] |= 1<<MAPID_ACOLYTE;
+	if (jobmask & 1<<JOB_SAGE)
+		bclass[2] |= 1<<MAPID_MAGE;
+	if (jobmask & 1<<JOB_ALCHEMIST)
+		bclass[2] |= 1<<MAPID_MERCHANT;
+	if (jobmask & 1<<JOB_BARD)
+		bclass[2] |= 1<<MAPID_ARCHER;
+	if (jobmask & 1<<JOB_DANCER)
+		bclass[2] |= 1<<MAPID_ARCHER;
+	if (jobmask & 1<<JOB_ROGUE)
+		bclass[2] |= 1<<MAPID_THIEF;
+	//Special classes that don't fit above.
+	if (jobmask & 1<<JOB_SUPER_NOVICE)
+		bclass[1] |= 1<<MAPID_NOVICE;
+	if (jobmask & 1<<24) //Taekwon boy
+		bclass[0] |= 1<<MAPID_TAEKWON;
+	if (jobmask & 1<<25) //Star Gladiator
+		bclass[1] |= 1<<MAPID_TAEKWON;
+	if (jobmask & 1<<26) //Soul Linker
+		bclass[2] |= 1<<MAPID_TAEKWON;
+}
 
-	id=(struct item_data *) numdb_search(item_db,nameid);
-	if(id) return id;
+static void* create_item_data(DBKey key, va_list args) {
+	struct item_data *id;
+	int nameid = key.i;
 
 	id=(struct item_data *)aCalloc(1,sizeof(struct item_data));
-	numdb_insert(item_db,nameid,id);
-
 	id->nameid=nameid;
 	id->value_buy=10;
 	id->value_sell=id->value_buy/2;
 	id->weight=10;
 	id->sex=2;
-	id->elv=0;
-	id->class_=0xffffffff;
-	id->flag.available=0;
-	id->flag.value_notdc=0;  //一応・・・
-	id->flag.value_notoc=0;
-	id->flag.no_equip=0;
-	id->view_id=0;
+	id->class_base[0]=0xff;
+	id->class_base[1]=0xff;
+	id->class_base[2]=0xff;
+	id->class_upper=5;
 
 	if(nameid>500 && nameid<600)
 		id->type=0;   //heal item
@@ -186,8 +233,15 @@ struct item_data* itemdb_search(int nameid)
 		id->type=7;   //egg
 	else if(nameid>10000)
 		id->type=8;   //petequip
-
 	return id;
+}
+/*==========================================
+ * DBの検索
+ *------------------------------------------
+ */
+struct item_data* itemdb_search(int nameid)
+{
+	return idb_ensure(item_db,nameid,create_item_data);
 }
 
 /*==========================================
@@ -216,6 +270,53 @@ int itemdb_isequip2(struct item_data *data)
 	}
 	return 0;
 }
+
+/*==========================================
+ * Trade Restriction functions [Skotlex]
+ *------------------------------------------
+ */
+int itemdb_isdropable(int nameid, int gmlv)
+{
+	struct item_data* item = itemdb_exists(nameid);
+	return (item && (!(item->flag.trade_restriction&1) || gmlv >= item->gm_lv_trade_override));
+}
+
+int itemdb_cantrade(int nameid, int gmlv, int gmlv2)
+{
+	struct item_data* item = itemdb_exists(nameid);
+	return (item && (!(item->flag.trade_restriction&2) || gmlv >= item->gm_lv_trade_override || gmlv2 >= item->gm_lv_trade_override));
+}
+
+int itemdb_canpartnertrade(int nameid, int gmlv, int gmlv2)
+{
+	struct item_data* item = itemdb_exists(nameid);
+	return (item && (!(item->flag.trade_restriction&(2|4)) || gmlv >= item->gm_lv_trade_override || gmlv2 >= item->gm_lv_trade_override));
+}
+
+int itemdb_cansell(int nameid, int gmlv)
+{
+	struct item_data* item = itemdb_exists(nameid);
+	return (item && (!(item->flag.trade_restriction&8) || gmlv >= item->gm_lv_trade_override));
+}
+
+int itemdb_cancartstore(int nameid, int gmlv)
+{	
+	struct item_data* item = itemdb_exists(nameid);
+	return (item && (!(item->flag.trade_restriction&16) || gmlv >= item->gm_lv_trade_override));
+}
+
+int itemdb_canstore(int nameid, int gmlv)
+{	
+	struct item_data* item = itemdb_exists(nameid);
+	return (item && (!(item->flag.trade_restriction&32) || gmlv >= item->gm_lv_trade_override));
+}
+
+int itemdb_canguildstore(int nameid, int gmlv)
+{	
+	struct item_data* item = itemdb_exists(nameid);
+	return (item && (!(item->flag.trade_restriction&64) || gmlv >= item->gm_lv_trade_override));
+}
+
 /*==========================================
  *
  *------------------------------------------
@@ -229,173 +330,10 @@ int itemdb_isequip3(int nameid)
 }
 
 /*==========================================
- * 捨てられるアイテムは1、そうでないアイテムは0
- *------------------------------------------
- */
-int itemdb_isdropable(int nameid)
-{
-	//結婚指輪は捨てられない
-	switch(nameid){
-	case 2634: //結婚指輪
-	case 2635: //結婚指輪
-		return 0;
-	}
-
-	return 1;
-}
-
-/*====================================
- * Removed item_value_db, don't re-add
- *------------------------------------
- */
-static void itemdb_read(void)
-{
-	#ifndef TXT_ONLY
-		if (db_use_sqldbs)
-		{
-			itemdb_read_sqldb();
-		}
-		else
-		{
-			itemdb_readdb();
-		}
-	/* not TXT_ONLY */
-	#else
-		itemdb_readdb();
-	#endif /* TXT_ONLY */
-
-	itemdb_read_randomitem();
-	itemdb_read_itemavail();
-	itemdb_read_noequip();
-	itemdb_read_norefine();
-	if (battle_config.cardillust_read_grffile)
-		itemdb_read_cardillustnametable();
-	if (battle_config.item_equip_override_grffile)
-		itemdb_read_itemslottable();
-	if (battle_config.item_slots_override_grffile)
-		itemdb_read_itemslotcounttable();
-	if (battle_config.item_name_override_grffile)
-		itemdb_read_itemnametable();
-}
-
-/*==========================================
- * アイテムデータベースの読み込み
- *------------------------------------------
- */
-static int itemdb_readdb(void)
-{
-	FILE *fp;
-	char line[1024];
-	int ln=0,lines=0;
-	int nameid,j;
-	char *str[32],*p,*np;
-	struct item_data *id;
-	int i=0;
-	char *filename[]={ "db/item_db.txt","db/item_db2.txt" };
-
-	for(i=0;i<2;i++){
-
-		fp=fopen(filename[i],"r");
-		if(fp==NULL){
-			if(i>0)
-				continue;
-			printf("can't read %s\n",filename[i]);
-			exit(1);
-		}
-
-		lines=0;
-		while(fgets(line,1020,fp)){
-			lines++;
-			if(line[0]=='/' && line[1]=='/')
-				continue;
-			memset(str,0,sizeof(str));
-			for(j=0,np=p=line;j<17 && p;j++){
-				str[j]=p;
-				p=strchr(p,',');
-				if(p){ *p++=0; np=p; }
-			}
-			if(str[0]==NULL)
-				continue;
-
-			nameid=atoi(str[0]);
-			if(nameid<=0 || nameid>=20000)
-				continue;
-			ln++;
-
-			//ID,Name,Jname,Type,Price,Sell,Weight,ATK,DEF,Range,Slot,Job,Gender,Loc,wLV,eLV,View
-			id=itemdb_search(nameid);
-			memcpy(id->name,str[1],24);
-			memcpy(id->jname,str[2],24);
-			id->type=atoi(str[3]);
-
-			{
-				int buy = atoi(str[4]), sell = atoi(str[5]);
-				// if buying price > selling price * 2 consider it valid and don't change it [celest]
-				if (buy && sell && buy > sell*2){
-					id->value_buy = buy;
-					id->value_sell = sell;
-				} else {
-					// buy≠sell*2 は item_value_db.txt で指定してください。
-					if (sell) {		// sell値を優先とする
-						id->value_buy = sell*2;
-						id->value_sell = sell;
-					} else {
-						id->value_buy = buy;
-						id->value_sell = buy/2;
-					}
-				}
-				// check for bad prices that can possibly cause exploits
-				if (id->value_buy*75/100 < id->value_sell*124/100) {
-					sprintf (tmp_output, "Item %s [%d] buying:%d < selling:%d\n",
-						id->name, id->nameid, id->value_buy*75/100, id->value_sell*124/100);
-					ShowWarning (tmp_output);
-				}
-			}
-			id->weight=atoi(str[6]);
-			id->atk=atoi(str[7]);
-			id->def=atoi(str[8]);
-			id->range=atoi(str[9]);
-			id->slot=atoi(str[10]);
-			id->class_=atoi(str[11]);
-			id->sex=atoi(str[12]);
-			if(id->equip != atoi(str[13])){
-				id->equip=atoi(str[13]);
-			}
-			id->wlv=atoi(str[14]);
-			id->elv=atoi(str[15]);
-			id->look=atoi(str[16]);
-			id->flag.available=1;
-			id->flag.value_notdc=0;
-			id->flag.value_notoc=0;
-			id->view_id=0;
-
-			id->use_script=NULL;
-			id->equip_script=NULL;
-
-			if((p=strchr(np,'{'))==NULL)
-				continue;
-			id->use_script = parse_script((unsigned char *) p,lines);
-			if((p=strchr(p+1,'{'))==NULL)
-				continue;
-			id->equip_script = parse_script((unsigned char *) p,lines);
-		}
-		fclose(fp);
-		if (ln > 0) {
-			sprintf(tmp_output,"Done reading '"CL_WHITE"%d"CL_RESET"' entries in '"CL_WHITE"%s"CL_RESET"'.\n",ln,filename[i]);
-			ShowStatus(tmp_output);
-		}
-		ln=0;	// reset to 0
-	}
-	return 0;
-}
-
-// Removed item_value_db, don't re-add!
-
-/*==========================================
  * ランダムアイテム出現データの読み込み
  *------------------------------------------
  */
-static int itemdb_read_randomitem()
+static int itemdb_read_randomitem(void)
 {
 	FILE *fp;
 	char line[1024];
@@ -408,12 +346,12 @@ static int itemdb_read_randomitem()
 		struct random_item_data *pdata;
 		int *pcount,*pdefault;
 	} data[] = {
-		{"db/item_bluebox.txt",		blue_box,	&blue_box_count, &blue_box_default		},
-		{"db/item_violetbox.txt",	violet_box,	&violet_box_count, &violet_box_default	},
-		{"db/item_cardalbum.txt",	card_album,	&card_album_count, &card_album_default	},
-		{"db/item_giftbox.txt",		gift_box,	&gift_box_count, &gift_box_default	},
-		{"db/item_scroll.txt",		scroll,		&scroll_count, &scroll_default	},
-		{"db/item_findingore.txt",	finding_ore,&finding_ore_count, &finding_ore_default	},
+		{"item_bluebox.txt",		blue_box,	&blue_box_count, &blue_box_default		},
+		{"item_violetbox.txt",	violet_box,	&violet_box_count, &violet_box_default	},
+		{"item_cardalbum.txt",	card_album,	&card_album_count, &card_album_default	},
+		{"item_giftbox.txt",		gift_box,	&gift_box_count, &gift_box_default	},
+		{"item_scroll.txt",		scroll,		&scroll_count, &scroll_default	},
+		{"item_findingore.txt",	finding_ore,&finding_ore_count, &finding_ore_default	},
 	};
 
 	for(i=0;i<sizeof(data)/sizeof(data[0]);i++){
@@ -423,8 +361,9 @@ static int itemdb_read_randomitem()
 		char *fn=(char *) data[i].filename;
 
 		*pdefault = 0;
-		if( (fp=fopen(fn,"r"))==NULL ){
-			printf("can't read %s\n",fn);
+		sprintf(line, "%s/%s", db_path, fn);
+		if( (fp=fopen(line,"r"))==NULL ){
+			ShowError("can't read %s\n",line);
 			continue;
 		}
 
@@ -461,59 +400,115 @@ static int itemdb_read_randomitem()
 		}
 		fclose(fp);
 		if (*pc > 0) {
-			sprintf(tmp_output,"Done reading '"CL_WHITE"%d"CL_RESET"' entries in '"CL_WHITE"%s"CL_RESET"'.\n",*pc,fn);
-			ShowStatus(tmp_output);
+			ShowStatus("Done reading '"CL_WHITE"%d"CL_RESET"' entries in '"CL_WHITE"%s"CL_RESET"'.\n",*pc,fn);
 		}
 	}
 
 	return 0;
 }
+
 /*==========================================
  * アイテム使用可能フラグのオーバーライド
  *------------------------------------------
  */
-static int itemdb_read_itemavail(void)
+static int itemdb_read_itemavail (void)
 {
 	FILE *fp;
-	char line[1024];
-	int ln=0;
-	int nameid,j,k;
-	char *str[10],*p;
+	int nameid, j, k, ln = 0;
+	char line[1024], *str[10], *p;
+	struct item_data *id;
 
-	if( (fp=fopen("db/item_avail.txt","r"))==NULL ){
-		printf("can't read db/item_avail.txt\n");
+	sprintf(line, "%s/item_avail.txt", db_path);
+	if ((fp = fopen(line,"r")) == NULL) {
+		ShowError("can't read %s\n", line);
 		return -1;
 	}
 
-	while(fgets(line,1020,fp)){
-		struct item_data *id;
-		if(line[0]=='/' && line[1]=='/')
+	while (fgets(line, sizeof(line) - 1, fp)) {
+		if (line[0] == '/' && line[1] == '/')
 			continue;
-		memset(str,0,sizeof(str));
-		for(j=0,p=line;j<2 && p;j++){
-			str[j]=p;
-			p=strchr(p,',');
-			if(p) *p++=0;
+		memset(str, 0, sizeof(str));
+		for (j = 0, p = line; j < 2 && p; j++) {
+			str[j] = p;
+			p = strchr(p, ',');
+			if(p) *p++ = 0;
 		}
 
-		if(str[0]==NULL)
+		if (j < 2 || str[0] == NULL ||
+			(nameid = atoi(str[0])) < 0 || nameid >= 20000 || !(id = itemdb_exists(nameid)))
 			continue;
 
-		nameid=atoi(str[0]);
-		if(nameid<0 || nameid>=20000 || !(id=itemdb_exists(nameid)) )
-			continue;
-		k=atoi(str[1]);
-		if(k > 0) {
+		k = atoi(str[1]);
+		if (k > 0) {
 			id->flag.available = 1;
 			id->view_id = k;
-		}
-		else
+		} else
 			id->flag.available = 0;
 		ln++;
 	}
 	fclose(fp);
-	sprintf(tmp_output,"Done reading '"CL_WHITE"%d"CL_RESET"' entries in '"CL_WHITE"%s"CL_RESET"'.\n",ln,"db/item_avail.txt");
-	ShowStatus(tmp_output);
+	ShowStatus("Done reading '"CL_WHITE"%d"CL_RESET"' entries in '"CL_WHITE"%s"CL_RESET"'.\n", ln, "item_avail.txt");
+
+	return 0;
+}
+
+/*==========================================
+ * read item group data
+ *------------------------------------------
+ */
+static int itemdb_read_itemgroup(void)
+{
+	FILE *fp;
+	char line[1024];
+	int ln=0;
+	int groupid,j,k;
+	char *str[31],*p;
+
+	sprintf(line, "%s/item_group_db.txt", db_path);
+	if( (fp=fopen(line,"r"))==NULL ){
+		ShowError("can't read %s\n", line);
+		return -1;
+	}
+
+	while(fgets(line,1020,fp)){
+		if(line[0]=='/' && line[1]=='/')
+			continue;
+		memset(str,0,sizeof(str));
+		for(j=0,p=line;j<31 && p;j++){
+			str[j]=p;
+			p=strchr(p,',');
+			if(p) *p++=0;
+		}
+		if(str[0]==NULL)
+			continue;
+
+		groupid = atoi(str[0]);
+		if (groupid < 0 || groupid >= MAX_ITEMGROUP)
+			continue;
+
+		for (j=1; j<=30; j++) {
+			if (!str[j])
+				break;
+			k=atoi(str[j]);
+			if (k < 0 || k >= 20000 || !itemdb_exists(k))
+				continue;
+			//printf ("%d[%d] = %d\n", groupid, j-1, k);
+			itemgroup_db[groupid].id[j-1] = k;
+			itemgroup_db[groupid].qty=j;
+		}
+		for (j=1; j<30; j++) { //Cleanup the contents. [Skotlex]
+			if (itemgroup_db[groupid].id[j-1] == 0 &&
+				itemgroup_db[groupid].id[j] != 0) 
+			{
+				itemgroup_db[groupid].id[j-1] = itemgroup_db[groupid].id[j];
+				itemgroup_db[groupid].id[j] = 0;
+				itemgroup_db[groupid].qty = j;
+			}
+		}
+		ln++;
+	}
+	fclose(fp);
+	ShowStatus("Done reading '"CL_WHITE"%d"CL_RESET"' entries in '"CL_WHITE"%s"CL_RESET"'.\n",ln,"item_group_db.txt");
 	return 0;
 }
 
@@ -534,19 +529,19 @@ static int itemdb_read_itemnametable(void)
 	buf[s]=0;
 	for(p=buf;p-buf<s;){
 		int nameid;
-		char buf2[64];
+		char buf2[64]; //Why 64? What's this for, other than holding an item's name? [Skotlex]
 
 		if(	sscanf(p,"%d#%[^#]#",&nameid,buf2)==2 ){
 
 #ifdef ITEMDB_OVERRIDE_NAME_VERBOSE
 			if( itemdb_exists(nameid) &&
-				strncmp(itemdb_search(nameid)->jname,buf2,24)!=0 ){
-				printf("[override] %d %s => %s\n",nameid
+				strncmp(itemdb_search(nameid)->jname,buf2,ITEM_NAME_LENGTH)!=0 ){
+				ShowNotice("[override] %d %s => %s\n",nameid
 					,itemdb_search(nameid)->jname,buf2);
 			}
 #endif
 
-			memcpy(itemdb_search(nameid)->jname,buf2,24);
+			memcpy(itemdb_search(nameid)->jname,buf2,ITEM_NAME_LENGTH-1);
 		}
 
 		p=strchr(p,10);
@@ -554,8 +549,7 @@ static int itemdb_read_itemnametable(void)
 		p++;
 	}
 	aFree(buf);
-	sprintf(tmp_output,"Done reading '"CL_WHITE"%s"CL_RESET"'.\n","data\\idnum2itemdisplaynametable.txt");
-	ShowStatus(tmp_output);
+	ShowStatus("Done reading '"CL_WHITE"%s"CL_RESET"'.\n","data\\idnum2itemdisplaynametable.txt");
 
 	return 0;
 }
@@ -582,7 +576,6 @@ static int itemdb_read_cardillustnametable(void)
 		if(	sscanf(p,"%d#%[^#]#",&nameid,buf2)==2 ){
 			strcat(buf2,".bmp");
 			memcpy(itemdb_search(nameid)->cardillustname,buf2,64);
-//			printf("%d %s\n",nameid,itemdb_search(nameid)->cardillustname);
 		}
 		
 		p=strchr(p,10);
@@ -590,8 +583,7 @@ static int itemdb_read_cardillustnametable(void)
 		p++;
 	}
 	aFree(buf);
-	sprintf(tmp_output,"Done reading '"CL_WHITE"%s"CL_RESET"'.\n","data\\num2cardillustnametable.txt");
-	ShowStatus(tmp_output);
+	ShowStatus("Done reading '"CL_WHITE"%s"CL_RESET"'.\n","data\\num2cardillustnametable.txt");
 
 	return 0;
 }
@@ -605,31 +597,29 @@ static int itemdb_read_cardillustnametable(void)
  */
 static int itemdb_read_itemslottable(void)
 {
-	char *buf,*p;
+	char *buf, *p;
 	int s;
 
-	buf=(char *) grfio_read("data\\itemslottable.txt");
-	if(buf==NULL)
+	buf = (char *)grfio_reads("data\\itemslottable.txt", &s);
+	if (buf == NULL)
 		return -1;
-	s=grfio_size("data\\itemslottable.txt");
-	buf[s]=0;
-	for(p=buf;p-buf<s;){
-		int nameid,equip;
+	buf[s] = 0;
+	for (p = buf; p - buf < s; ) {
+		int nameid, equip;
 		struct item_data* item;
-		sscanf(p,"%d#%d#",&nameid,&equip);
+		sscanf(p, "%d#%d#", &nameid, &equip);
 		item = itemdb_search(nameid);
 		if (item && itemdb_isequip2(item))			
-			item->equip=equip;
-		p=strchr(p,10);
+			item->equip = equip;
+		p = strchr(p, 10);
 		if(!p) break;
 		p++;
-		p=strchr(p,10);
+		p=strchr(p, 10);
 		if(!p) break;
 		p++;
 	}
 	aFree(buf);
-	sprintf(tmp_output,"Done reading '"CL_WHITE"%s"CL_RESET"'.\n","data\\itemslottable.txt");
-	ShowStatus(tmp_output);
+	ShowStatus("Done reading '"CL_WHITE"%s"CL_RESET"'.\n","data\\itemslottable.txt");
 
 	return 0;
 }
@@ -640,28 +630,31 @@ static int itemdb_read_itemslottable(void)
  */
 static int itemdb_read_itemslotcounttable(void)
 {
-	char *buf,*p;
+	char *buf, *p;
 	int s;
 
-	buf=(char *) grfio_read("data\\itemslotcounttable.txt");
-	if(buf==NULL)
+	buf = (char *)grfio_reads("data\\itemslotcounttable.txt", &s);
+	if (buf == NULL)
 		return -1;
-	s=grfio_size("data\\itemslotcounttable.txt");
-	buf[s]=0;
-	for(p=buf;p-buf<s;){
-		int nameid,slot;
-		sscanf(p,"%d#%d#",&nameid,&slot);
-		itemdb_search(nameid)->slot=slot;
-		p=strchr(p,10);
+	buf[s] = 0;
+	for (p = buf; p - buf < s;){
+		int nameid, slot;
+		sscanf(p, "%d#%d#", &nameid, &slot);
+		if (slot > MAX_SLOTS)
+		{
+			ShowWarning("itemdb_read_itemslotcounttable: Item %d specifies %d slots, but the server only supports up to %d\n", nameid, slot, MAX_SLOTS);
+			slot = MAX_SLOTS;
+		}
+		itemdb_slot(nameid) = slot;
+		p = strchr(p,10);
 		if(!p) break;
 		p++;
-		p=strchr(p,10);
+		p = strchr(p,10);
 		if(!p) break;
 		p++;
 	}
 	aFree(buf);
-	sprintf(tmp_output,"Done reading '"CL_WHITE"%s"CL_RESET"'.\n","data\\itemslotcounttable.txt");
-	ShowStatus(tmp_output);
+	ShowStatus("Done reading '"CL_WHITE"%s"CL_RESET"'.\n", "data\\itemslotcounttable.txt");
 
 	return 0;
 }
@@ -679,8 +672,9 @@ static int itemdb_read_noequip(void)
 	char *str[32],*p;
 	struct item_data *id;
 
-	if( (fp=fopen("db/item_noequip.txt","r"))==NULL ){
-		printf("can't read db/item_noequip.txt\n");
+	sprintf(line, "%s/item_noequip.txt", db_path);
+	if( (fp=fopen(line,"r"))==NULL ){
+		ShowError("can't read %s\n", line);
 		return -1;
 	}
 	while(fgets(line,1020,fp)){
@@ -706,46 +700,74 @@ static int itemdb_read_noequip(void)
 	}
 	fclose(fp);
 	if (ln > 0) {
-		sprintf(tmp_output,"Done reading '"CL_WHITE"%d"CL_RESET"' entries in '"CL_WHITE"%s"CL_RESET"'.\n",ln,"db/item_noequip.txt");
-		ShowStatus(tmp_output);
+		ShowStatus("Done reading '"CL_WHITE"%d"CL_RESET"' entries in '"CL_WHITE"%s"CL_RESET"'.\n",ln,"item_noequip.txt");
 	}	
 	return 0;
 }
 
-/*================================================
- * Whether the item can be refined or not [Celest]
- *------------------------------------------------
+/*==========================================
+ * Reads item trade restrictions [Skotlex]
+ *------------------------------------------
  */
-static int itemdb_read_norefine(void)
+static int itemdb_read_itemtrade(void)
 {
-	int i, nameid;
+	FILE *fp;
+	int nameid, j, flag, gmlv, ln = 0;
+	char line[1024], *str[10], *p;
 	struct item_data *id;
-	// To-do: let it read from a text file later
-	int cant_refine[] = {
-		1243, 1530, 2110, 2112, 2201, 2202, 2203, 2204, 2205, 2210,
-		2212, 2218, 2219, 2237, 2238, 2239, 2240, 2241, 2242, 2243,
-		2250, 2253, 2260, 2262, 2263, 2264, 2265, 2266, 2267, 2268,
-		2269, 2270, 2271, 2276, 2278, 2279, 2281, 2282, 2286, 2288,
-		2289, 2290, 2291, 2292, 2293, 2295, 2296, 2297, 2298, 2352,
-		2410, 2413, 2414, 2509, 2510, 2601, 2602, 2603, 2604, 2605,
-		2607, 2608, 2609, 2610, 2611, 2612, 2613, 2614, 2615, 2616,
-		2617, 2618, 2619, 2620, 2621, 2622, 2623, 2624, 2625, 2626,
-		2627, 2628, 2629, 2630, 2631, 2634, 2635, 2636, 2637, 2638,
-		2639, 2640, 5004, 5005, 5006, 5008, 5014, 5015, 5037, 5039,
-		5040, 5043, 5046, 5049, 5050, 5051, 5053, 5054, 5055, 5058,
-		5068, 5074, 5085, 5086, 5087, 5088, 5089, 5090, 5096, 5098, 0
-	};
 
-	for (i=0; i < (int)(sizeof(cant_refine) / sizeof(cant_refine[0])); i++) {
-		nameid = cant_refine[i];
-		if(nameid<=0 || nameid>=20000 || !(id=itemdb_exists(nameid)))
-			continue;
-		id->flag.no_refine = 1;
+	sprintf(line, "%s/item_trade.txt", db_path);
+	if ((fp = fopen(line,"r")) == NULL) {
+		ShowError("can't read %s\n", line);
+		return -1;
 	}
 
-	return 1;
+	while (fgets(line, sizeof(line) - 1, fp)) {
+		if (line[0] == '/' && line[1] == '/')
+			continue;
+		memset(str, 0, sizeof(str));
+		for (j = 0, p = line; j < 3 && p; j++) {
+			str[j] = p;
+			p = strchr(p, ',');
+			if(p) *p++ = 0;
+		}
+
+		if (j < 3 || str[0] == NULL ||
+			(nameid = atoi(str[0])) < 0 || nameid >= 20000 || !(id = itemdb_exists(nameid)))
+			continue;
+
+		flag = atoi(str[1]);
+		gmlv = atoi(str[2]);
+		
+		if (flag > 0 && flag < 128 && gmlv > 0) { //Check range
+			id->flag.trade_restriction = flag;
+			id->gm_lv_trade_override = gmlv;
+			ln++;
+		}
+	}
+	fclose(fp);
+	ShowStatus("Done reading '"CL_WHITE"%d"CL_RESET"' entries in '"CL_WHITE"%s"CL_RESET"'.\n", ln, "item_trade.txt");
+
+	return 0;
 }
 
+/*======================================
+ * Applies gender restrictions according to settings. [Skotlex]
+ *======================================
+ */
+static int itemdb_gendercheck(struct item_data *id)
+{
+	if (id->nameid == WEDDING_RING_M) //Grom Ring
+		return 1;
+	if (id->nameid == WEDDING_RING_F) //Bride Ring
+		return 0;
+	if (id->look == 13 && id->type == 4) //Musical instruments are always male-only
+		return 1;
+	if (id->look == 14 && id->type == 4) //Whips are always female-only
+		return 0;
+
+	return (battle_config.ignore_items_gender?2:id->sex);
+}
 #ifndef TXT_ONLY
 
 /*======================================
@@ -754,221 +776,327 @@ static int itemdb_read_norefine(void)
 */
 static int itemdb_read_sqldb(void)
 {
-	unsigned short	nameid;
-	struct			item_data *id;
-	char			script[65535 + 2 + 1]; // Maximum length of MySQL TEXT type (65535) + 2 bytes for curly brackets + 1 byte for terminator
+	unsigned short nameid;
+	struct item_data *id;
+	char script[65535 + 2 + 1]; // Maximum length of MySQL TEXT type (65535) + 2 bytes for curly brackets + 1 byte for terminator
+	char *item_db_name[] = { item_db_db, item_db2_db };
+	long unsigned int ln = 0;
+	int i;	
 
 	// ----------
 
-	sprintf(tmp_sql, "SELECT * FROM `%s`", item_db_db);
+	for (i = 0; i < 2; i++) {
+		sprintf(tmp_sql, "SELECT * FROM `%s`", item_db_name[i]);
 
-	// Execute the query; if the query execution succeeded...
-	if (mysql_query(&mmysql_handle, tmp_sql) == 0)
-	{
-		sql_res = mysql_store_result(&mmysql_handle);
+		// Execute the query; if the query execution succeeded...
+		if (mysql_query(&mmysql_handle, tmp_sql) == 0) {
+			sql_res = mysql_store_result(&mmysql_handle);
 
-		// If the storage of the query result succeeded...
-		if (sql_res)
-		{
-			// Parse each row in the query result into sql_row
-			while ((sql_row = mysql_fetch_row(sql_res)))
-			{
-				/* +----+--------------+---------------+------+-----------+------------+--------+--------+---------+-------+-------+------------+---------------+-----------------+--------------+-------------+------+------------+--------------+
-				   |  0 |            1 |             2 |    3 |         4 |          5 |      6 |      7 |       8 |     9 |    10 |         11 |            12 |              13 |           14 |          15 |   16 |         17 |           18 |
-				   +----+--------------+---------------+------+-----------+------------+--------+--------+---------+-------+-------+------------+---------------+-----------------+--------------+-------------+------+------------+--------------+
-				   | id | name_english | name_japanese | type | price_buy | price_sell | weight | attack | defence | range | slots | equip_jobs | equip_genders | equip_locations | weapon_level | equip_level | view | script_use | script_equip |
-				   +----+--------------+---------------+------+-----------+------------+--------+--------+---------+-------+-------+------------+---------------+-----------------+--------------+-------------+------+------------+--------------+ */
-
-				nameid = atoi(sql_row[0]);
-
-				// If the identifier is not within the valid range, process the next row
-				if (nameid == 0 || nameid >= 20000)
+			// If the storage of the query result succeeded...
+			if (sql_res) {
+				// Parse each row in the query result into sql_row
+				while ((sql_row = mysql_fetch_row(sql_res)))
 				{
-					continue;
+					/* +----+--------------+---------------+------+-----------+------------+--------+--------+---------+-------+-------+------------+---------------+-----------------+--------------+-------------+------+------------+--------------+
+					   |  0 |            1 |             2 |    3 |         4 |          5 |      6 |      7 |       8 |     9 |    10 |         11 |          12 |            13 |              14 |           15 |   16        |         17 |   18 |     19 |
+					   +----+--------------+---------------+------+-----------+------------+--------+--------+---------+-------+-------+------------+---------------+-----------------+--------------+-------------+------+------------+--------------+
+					   | id | name_english | name_japanese | type | price_buy | price_sell | weight | attack | defence | range | slots | equip_jobs | equip_upper | equip_genders | equip_locations | weapon_level | equip_level | refineable | view | script |
+					   +----+--------------+---------------+------+-----------+------------+--------+--------+---------+-------+-------+------------+---------------+-----------------+--------------+-------------+------+------------+--------------+ */
+
+					nameid = atoi(sql_row[0]);
+
+					// If the identifier is not within the valid range, process the next row
+					if (nameid == 0 || nameid >= 20000)
+						continue;
+
+					ln++;
+
+					// ----------
+					id = itemdb_search(nameid);
+					
+					memcpy(id->name, sql_row[1], ITEM_NAME_LENGTH-1);
+					memcpy(id->jname, sql_row[2], ITEM_NAME_LENGTH-1);
+
+					id->type = atoi(sql_row[3]);
+					if (id->type == 11)
+					{	//Items that are consumed upon target confirmation
+						//(yggdrasil leaf, spells & pet lures) [Skotlex]
+						id->type = 2;
+						id->flag.delay_consume=1;
+					}
+
+					// If price_buy is not NULL and price_sell is not NULL...
+					if ((sql_row[4] != NULL) && (sql_row[5] != NULL)) {
+						id->value_buy = atoi(sql_row[4]);
+						id->value_sell = atoi(sql_row[5]);
+					}
+					// If price_buy is not NULL and price_sell is NULL...
+					else if ((sql_row[4] != NULL) && (sql_row[5] == NULL)) {
+						id->value_buy = atoi(sql_row[4]);
+						id->value_sell = atoi(sql_row[4]) / 2;
+					}
+					// If price_buy is NULL and price_sell is not NULL...
+					else if ((sql_row[4] == NULL) && (sql_row[5] != NULL)) {
+						id->value_buy = atoi(sql_row[5]) * 2;
+						id->value_sell = atoi(sql_row[5]);
+					}
+					// If price_buy is NULL and price_sell is NULL...
+					if ((sql_row[4] == NULL) && (sql_row[5] == NULL)) {
+						id->value_buy = 0;
+						id->value_sell = 0;
+					}
+
+					id->weight	= atoi(sql_row[6]);
+					id->atk		= (sql_row[7] != NULL) ? atoi(sql_row[7]) : 0;
+					id->def		= (sql_row[8] != NULL) ? atoi(sql_row[8]) : 0;
+					id->range	= (sql_row[9] != NULL) ? atoi(sql_row[9]) : 0;
+					id->slot	= (sql_row[10] != NULL) ? atoi(sql_row[10]) : 0;
+					if (id->slot > MAX_SLOTS)
+					{
+						ShowWarning("itemdb_read_sqldb: Item %d (%s) specifies %d slots, but the server only supports up to %d\n", nameid, id->jname, id->slot, MAX_SLOTS);
+						id->slot = MAX_SLOTS;
+					}
+					itemdb_jobid2mapid(id->class_base, (sql_row[11] != NULL) ? atoi(sql_row[11]) : 0);
+					id->class_upper= (sql_row[12] != NULL) ? atoi(sql_row[12]) : 0;
+					id->sex		= (sql_row[13] != NULL) ? atoi(sql_row[13]) : 0;
+					id->equip	= (sql_row[14] != NULL) ? atoi(sql_row[14]) : 0;
+					id->wlv		= (sql_row[15] != NULL) ? atoi(sql_row[15]) : 0;
+					id->elv		= (sql_row[16] != NULL)	? atoi(sql_row[16]) : 0;
+					id->flag.no_refine = (sql_row[17] == NULL || atoi(sql_row[17]) == 1)?0:1;
+					id->look	= (sql_row[18] != NULL) ? atoi(sql_row[18]) : 0;
+					id->view_id	= 0;
+					id->sex = itemdb_gendercheck(id); //Apply gender filtering.
+
+					// ----------
+					
+					if (id->script)
+						aFree(id->script);
+					if (sql_row[19] != NULL) {
+						if (sql_row[19][0] == '{')
+							id->script = parse_script((unsigned char *) sql_row[19], 0);
+						else {
+							sprintf(script, "{%s}", sql_row[19]);
+							id->script = parse_script((unsigned char *) script, 0);
+						}
+					} else id->script = NULL;
+
+					// ----------
+
+					id->flag.available	= 1;
+					id->flag.value_notdc	= 0;
+					id->flag.value_notoc	= 0;
 				}
 
-				// Insert a new row into the item database
-
-				/*id = aCalloc(sizeof(struct item_data), 1);
-
-				if (id == NULL)
-				{
-					printf("out of memory : itemdb_read_sqldb\n");
-					exit(1);
-				}
-
-				memset(id, 0, sizeof(struct item_data));
-				numdb_insert(item_db, (int) nameid, id);*/
-
-				// ----------
-				id=itemdb_search(nameid);
-				
-				memcpy(id->name, sql_row[1], 25);
-				memcpy(id->jname, sql_row[2], 25);
-
-				id->type = atoi(sql_row[3]);
-
-				// If price_buy is not NULL and price_sell is not NULL...
-				if ((sql_row[4] != NULL) && (sql_row[5] != NULL))
-				{
-					id->value_buy = atoi(sql_row[4]);
-					id->value_sell = atoi(sql_row[5]);
-				}
-				// If price_buy is not NULL and price_sell is NULL...
-				else if ((sql_row[4] != NULL) && (sql_row[5] == NULL))
-				{
-					id->value_buy = atoi(sql_row[4]);
-					id->value_sell = atoi(sql_row[4]) / 2;
-				}
-				// If price_buy is NULL and price_sell is not NULL...
-				else if ((sql_row[4] == NULL) && (sql_row[5] != NULL))
-				{
-					id->value_buy = atoi(sql_row[5]) * 2;
-					id->value_sell = atoi(sql_row[5]);
-				}
-				// If price_buy is NULL and price_sell is NULL...
-				if ((sql_row[4] == NULL) && (sql_row[5] == NULL))
-				{
-					id->value_buy = 0;
-					id->value_sell = 0;
-				}
-
-				id->weight	= atoi(sql_row[6]);
-
-				id->atk		= (sql_row[7] != NULL)		? atoi(sql_row[7])	: 0;
-				id->def		= (sql_row[8] != NULL)		? atoi(sql_row[8])	: 0;
-				id->range	= (sql_row[9] != NULL)		? atoi(sql_row[9])	: 0;
-				id->slot	= (sql_row[10] != NULL)		? atoi(sql_row[10])	: 0;
-				id->class_	= (sql_row[11] != NULL)		? atoi(sql_row[11])	: 0;
-				id->sex		= (sql_row[12] != NULL)		? atoi(sql_row[12])	: 0;
-				id->equip	= (sql_row[13] != NULL)		? atoi(sql_row[13])	: 0;
-				id->wlv		= (sql_row[14] != NULL)		? atoi(sql_row[14])	: 0;
-				id->elv		= (sql_row[15] != NULL)		? atoi(sql_row[15])	: 0;
-				id->look	= (sql_row[16] != NULL)		? atoi(sql_row[16])	: 0;
-
-				id->view_id	= 0;
-
-				// ----------
-
-				if (sql_row[17] != NULL)
-				{
-                                        if (sql_row[17][0] == '{')
-					  id->use_script = parse_script((unsigned char *) sql_row[17], 0);
-                                        else {
-					  sprintf(script, "{%s}", sql_row[17]);
-					  id->use_script = parse_script((unsigned char *) script, 0);
-                                        }
-				}
-				else
-				{
-					id->use_script = NULL;
-				}
-
-				if (sql_row[18] != NULL)
-				{
-                                        if (sql_row[18][0] == '{')
-					  id->equip_script = parse_script((unsigned char *) sql_row[18], 0);
-                                        else {
-					  sprintf(script, "{%s}", sql_row[18]);
-					  id->equip_script = parse_script((unsigned char *) script, 0);
-                                        }
-				}
-				else
-				{
-					id->equip_script = NULL;
-				}
-
-				// ----------
-
-				id->flag.available		= 1;
-				id->flag.value_notdc	= 0;
-				id->flag.value_notoc	= 0;
+				ShowStatus("Done reading '"CL_WHITE"%lu"CL_RESET"' entries in '"CL_WHITE"%s"CL_RESET"'.\n", ln, item_db_name[i]);
+				ln = 0;
+			} else {
+				ShowSQL("DB error (%s) - %s\n",item_db_name[i], mysql_error(&mmysql_handle));
+				ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 			}
 
-			// If the retrieval failed, output an error
-			if (mysql_errno(&mmysql_handle))
-			{
-				printf("Database server error (retrieving rows from %s): %s\n", item_db_db, mysql_error(&mmysql_handle));
-			}
-			sprintf(tmp_output,"Done reading '"CL_WHITE"%lu"CL_RESET"' entries in '"CL_WHITE"%s"CL_RESET"'.\n",(unsigned long) mysql_num_rows(sql_res),item_db_db);
-			ShowStatus(tmp_output);
+			// Free the query result
+			mysql_free_result(sql_res);
+		} else {
+			ShowSQL("DB error (%s) - %s\n",item_db_name[i], mysql_error(&mmysql_handle));
+			ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 		}
-		else
-		{
-			printf("MySQL error (storing query result for %s): %s\n", item_db_db, mysql_error(&mmysql_handle));
-		}
-
-		// Free the query result
-		mysql_free_result(sql_res);
-	}
-	else
-	{
-		printf("Database server error (executing query for %s): %s\n", item_db_db, mysql_error(&mmysql_handle));
 	}
 
 	return 0;
 }
-
 #endif /* not TXT_ONLY */
+
 /*==========================================
- *
+ * アイテムデータベースの読み込み
  *------------------------------------------
  */
-static int itemdb_final(void *key,void *data,va_list ap)
+static int itemdb_readdb(void)
 {
+	FILE *fp;
+	char line[1024];
+	int ln=0,lines=0;
+	int nameid,j;
+	char *str[32],*p,*np;
 	struct item_data *id;
+	int i=0;
+	char *filename[]={ "item_db.txt","item_db2.txt" };
 
-	nullpo_retr(0, id= (struct item_data *) data);
+	for(i=0;i<2;i++){
+		sprintf(line, "%s/%s", db_path, filename[i]);
+		fp=fopen(line,"r");
+		if(fp==NULL){
+			if(i>0)
+				continue;
+			ShowFatalError("can't read %s\n",line);
+			exit(1);
+		}
 
-	if(id->use_script)
-		aFree(id->use_script);
-	if(id->equip_script)
-		aFree(id->equip_script);
-	aFree(id);
+		lines=0;
+		while(fgets(line,1020,fp)){
+			lines++;
+			if(line[0]=='/' && line[1]=='/')
+				continue;
+			memset(str,0,sizeof(str));
+			for(j=0,np=p=line;j<19 && p;j++){
+				str[j]=p;
+				p=strchr(p,',');
+				if(p){ *p++=0; np=p; }
+			}
+			if(str[0]==NULL)
+				continue;
+
+			nameid=atoi(str[0]);
+			if(nameid<=0 || nameid>=20000)
+				continue;
+			if (j < 19)
+			{	//Crash-fix on broken item lines. [Skotlex]
+				ShowWarning("Reading %s: Insufficient fields for item with id %d, skipping.\n", filename[i], nameid);
+				continue;
+			}
+			ln++;
+
+			//ID,Name,Jname,Type,Price,Sell,Weight,ATK,DEF,Range,Slot,Job,Job Upper,Gender,Loc,wLV,eLV,refineable,View
+			id=itemdb_search(nameid);
+			memcpy(id->name, str[1], ITEM_NAME_LENGTH-1);
+			memcpy(id->jname, str[2], ITEM_NAME_LENGTH-1);
+			id->type=atoi(str[3]);
+			if (id->type == 11)
+			{	//Items that are consumed upon target confirmation
+				//(yggdrasil leaf, spells & pet lures) [Skotlex]
+				id->type = 2;
+				id->flag.delay_consume=1;
+			}
+
+			{
+				int buy = atoi(str[4]), sell = atoi(str[5]);
+				// if buying price > selling price * 2 consider it valid and don't change it [celest]
+				if (buy && sell && buy > sell*2){
+					id->value_buy = buy;
+					id->value_sell = sell;
+				} else {
+					// buy≠sell*2 は item_value_db.txt で指定してください。
+					if (sell) {		// sell値を優先とする
+						id->value_buy = sell*2;
+						id->value_sell = sell;
+					} else {
+						id->value_buy = buy;
+						id->value_sell = buy/2;
+					}
+				}
+				// check for bad prices that can possibly cause exploits
+				if (id->value_buy*75/100 < id->value_sell*124/100) {
+					ShowWarning ("Item %s [%d] buying:%d < selling:%d\n",
+						id->name, id->nameid, id->value_buy*75/100, id->value_sell*124/100);
+				}
+			}
+			id->weight=atoi(str[6]);
+			id->atk=atoi(str[7]);
+			id->def=atoi(str[8]);
+			id->range=atoi(str[9]);
+			id->slot=atoi(str[10]);
+			if (id->slot > MAX_SLOTS)
+			{
+				ShowWarning("itemdb_readdb: Item %d (%s) specifies %d slots, but the server only supports up to %d\n", nameid, id->jname, id->slot, MAX_SLOTS);
+				id->slot = MAX_SLOTS;
+			}
+			itemdb_jobid2mapid(id->class_base, atoi(str[11]));
+			id->class_upper = atoi(str[12]);
+			id->sex	= atoi(str[13]);
+			if(id->equip != atoi(str[14])){
+				id->equip=atoi(str[14]);
+			}
+			id->wlv=atoi(str[15]);
+			id->elv=atoi(str[16]);
+			id->flag.no_refine = atoi(str[17])?0:1;	//If the refine column is 1, no_refine is 0
+			id->look=atoi(str[18]);
+			id->flag.available=1;
+			id->flag.value_notdc=0;
+			id->flag.value_notoc=0;
+			id->view_id=0;
+			id->sex = itemdb_gendercheck(id); //Apply gender filtering.
+
+			if (id->script) {
+				aFree(id->script);
+				id->script=NULL;
+			}
+			if((p=strchr(np,'{'))==NULL)
+				continue;
+			id->script = parse_script((unsigned char *) p,lines);
+		}
+		fclose(fp);
+		if (ln > 0) {
+			ShowStatus("Done reading '"CL_WHITE"%d"CL_RESET"' entries in '"CL_WHITE"%s"CL_RESET"'.\n",ln,filename[i]);
+		}
+		ln=0;	// reset to 0
+	}
+	return 0;
+}
+
+/*====================================
+ * Removed item_value_db, don't re-add
+ *------------------------------------
+ */
+static void itemdb_read(void)
+{
+#ifndef TXT_ONLY
+	if (db_use_sqldbs)
+		itemdb_read_sqldb();
+	else
+#endif
+		itemdb_readdb();
+
+	itemdb_read_itemgroup();
+	itemdb_read_randomitem();
+	itemdb_read_itemavail();
+	itemdb_read_noequip();
+	itemdb_read_itemtrade();
+	if (battle_config.cardillust_read_grffile)
+		itemdb_read_cardillustnametable();
+	if (battle_config.item_equip_override_grffile)
+		itemdb_read_itemslottable();
+	if (battle_config.item_slots_override_grffile)
+		itemdb_read_itemslotcounttable();
+	if (battle_config.item_name_override_grffile)
+		itemdb_read_itemnametable();
+}
+
+/*==========================================
+ * Initialize / Finalize
+ *------------------------------------------
+ */
+static int itemdb_final_sub (DBKey key,void *data,va_list ap)
+{
+	int flag;
+	struct item_data *id = (struct item_data *)data;
+
+	flag = va_arg(ap, int);
+	if (id->script)
+	{
+		aFree(id->script);
+		id->script = NULL;
+	}
+	// Whether to clear the item data
+	if (flag)
+		aFree(id);
 
 	return 0;
 }
 
 void itemdb_reload(void)
 {
-	numdb_final(item_db,itemdb_final);
-	do_init_itemdb();
+	// free up all item scripts first
+	item_db->foreach(item_db, itemdb_final_sub, 0);
+	itemdb_read();
 }
 
-/*==========================================
- *
- *------------------------------------------
- */
 void do_final_itemdb(void)
 {
-	if(item_db){
-		numdb_final(item_db,itemdb_final);
-		item_db=NULL;
-	}
+	item_db->destroy(item_db, itemdb_final_sub, 1);
 }
 
-/*
-static FILE *dfp;
-static int itemdebug(void *key,void *data,va_list ap){
-//	struct item_data *id=(struct item_data *)data;
-	fprintf(dfp,"%6d",(int)key);
-	return 0;
-}
-void itemdebugtxt()
-{
-	dfp=fopen("itemdebug.txt","wt");
-	numdb_foreach(item_db,itemdebug);
-	fclose(dfp);
-}
-*/
-/*==========================================
- *
- *------------------------------------------
- */
 int do_init_itemdb(void)
 {
-	item_db = numdb_init();
-
+	item_db = db_alloc(__FILE__,__LINE__,DB_INT,DB_OPT_BASE,sizeof(int)); 
 	itemdb_read();
 
 	return 0;

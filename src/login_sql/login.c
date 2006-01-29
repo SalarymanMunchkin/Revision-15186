@@ -1,6 +1,5 @@
-// $Id: login.c,v 1.6 2004/09/19 21:12:07 Valaris Exp $
-// original : login2.c 2003/01/28 02:29:17 Rev.1.1.1.1
-// txt version 1.100
+// Copyright (c) Athena Dev Teams - Licensed under GNU GPL
+// For more information, see LICENCE in the main folder
 
 #include <sys/types.h>
 
@@ -8,7 +7,7 @@
 #include <winsock.h>
 #pragma lib <libmysql.lib>
 #else
-#ifdef WIN32
+#ifdef __WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <winsock2.h>
@@ -17,11 +16,12 @@ void Gettimeofday(struct timeval *timenow)
 {
 	time_t t;
 	t = clock();
-	timenow->tv_usec = t;
-	timenow->tv_sec = t / CLK_TCK;
+	timenow->tv_usec = (long)t;
+	timenow->tv_sec = (long)(t / CLK_TCK);
 	return;
 }
 #define gettimeofday(timenow, dummy) Gettimeofday(timenow)
+#define in_addr_t unsigned long
 #pragma comment(lib,"libmysql.lib")
 #else
 #include <sys/socket.h>
@@ -36,7 +36,6 @@ void Gettimeofday(struct timeval *timenow)
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 #include <sys/stat.h> // for stat/lstat/fstat
 #include <signal.h>
 #include <fcntl.h>
@@ -52,15 +51,12 @@ void Gettimeofday(struct timeval *timenow)
 #include "../common/timer.h"
 #include "../common/strlib.h"
 #include "../common/mmo.h"
+#include "../common/showmsg.h"
 #include "../common/version.h"
 #include "login.h"
 
 #ifdef PASSWORDENC
 #include "md5calc.h"
-#endif
-
-#ifdef MEMWATCH
-#include "memwatch.h"
 #endif
 
 #define J_MAX_MALLOC_SIZE 65535
@@ -71,8 +67,8 @@ void Gettimeofday(struct timeval *timenow)
 int account_id_count = START_ACCOUNT_NUM;
 int server_num;
 int new_account_flag = 0; //Set from config too XD [Sirius]
-char bind_ip_str[16];
-in_addr_t bind_ip;
+int bind_ip_set_ = 0;
+char bind_ip_str[128];
 int login_port = 6900;
 char lan_char_ip[128]; // Lan char ip added by kashy
 int subnetmaski[4]; // Subnetmask added by kashy
@@ -82,21 +78,20 @@ int server_fd[MAX_SERVERS];
 
 int login_fd;
 
-//Added for Mugendai's I'm Alive mod
-int imalive_on=0;
-int imalive_time=60;
-//Added by Mugendai for GUI
-int flush_on=1;
-int flush_time=100;
+//Account flood protection [Kevin]
+unsigned int new_reg_tick=0;
+int allowed_regs=1;
+int num_regs=0;
+int time_allowed=10; //Init this to 10 secs, not 10K secs [Skotlex]
 
 char date_format[32] = "%Y-%m-%d %H:%M:%S";
-int auth_num = 0, auth_max = 0;
+unsigned int auth_num = 0, auth_max = 0;
 
 int min_level_to_connect = 0; // minimum level of player/GM (0: player, 1-99: gm) to connect on the server
 int check_ip_flag = 1; // It's to check IP of a player between login-server and char-server (part of anti-hacking system)
 int check_client_version = 0; //Client version check ON/OFF .. (sirius)
 int client_version_to_connect = 20; //Client version needed to connect ..(sirius)
-int register_users_online = 1;
+static int online_check=1; //When set to 1, login server rejects incoming players that are already registered as online. [Skotlex]
 
 MYSQL mysql_handle;
 
@@ -113,8 +108,10 @@ char login_server_ip[32] = "127.0.0.1";
 char login_server_id[32] = "ragnarok";
 char login_server_pw[32] = "ragnarok";
 char login_server_db[32] = "ragnarok";
+char default_codepage[32] = ""; //Feature by irmin.
 int use_md5_passwds = 0;
 char login_db[256] = "login";
+int log_login=1; //Whether to log the logins or not. [Skotlex]
 char loginlog_db[256] = "loginlog";
 
 // added to help out custom login tables, without having to recompile
@@ -124,6 +121,11 @@ char login_db_userid[256] = "userid";
 char login_db_user_pass[256] = "user_pass";
 char login_db_level[256] = "level";
 
+char reg_db[256] = "global_reg_value";
+
+int lowest_gm_level;
+struct gm_account *gm_account_db;
+int GM_num;
 char tmpsql[65535], tmp_sql[65535];
 
 int console = 0;
@@ -140,6 +142,11 @@ struct {
 
 int auth_fifo_pos = 0;
 
+struct online_login_data {
+	int account_id;
+	short char_server;
+	short waiting_disconnect;
+};
 
 //-----------------------------------------------------
 
@@ -147,43 +154,112 @@ static char md5key[20], md5keylen = 16;
 
 struct dbt *online_db;
 
+static void* create_online_user(DBKey key, va_list args) {
+	struct online_login_data *p;
+	p = aCalloc(1, sizeof(struct online_login_data));
+	p->account_id = key.i;
+	p->char_server = -1;
+	return p;	
+}
+
 //-----------------------------------------------------
 // Online User Database [Wizputer]
 //-----------------------------------------------------
 
-void add_online_user(int account_id) {
-	int *p;
-	if(register_users_online <= 0)
+void add_online_user(int char_server, int account_id) {
+	struct online_login_data *p;
+	if (!online_check)
 		return;
-	p = (int*)aMalloc(sizeof(int));
-	*p = account_id;
-	numdb_insert(online_db, account_id, p);
+	p = idb_ensure(online_db, account_id, create_online_user);
+	p->char_server = char_server;
+	p->waiting_disconnect = 0;
 }
 
 int is_user_online(int account_id) {
-	int *p;
-	if(register_users_online <= 0)
-		return 0;
-
-	p = (int*)numdb_search(online_db, account_id);
-        if (p != NULL)
-	    printf("Acccount %d\n",*p);
-	
-	return (p != NULL);
+	return (idb_get(online_db, account_id) != NULL);
 }
 
 void remove_online_user(int account_id) {
-	int *p;
-	if(register_users_online <= 0)
+	if(!online_check)
 		return;
-	p = (int*)numdb_erase(online_db,account_id);
-	aFree(p);
+	if (account_id == 99) {	// reset all to offline
+		online_db->clear(online_db, NULL);
+		return;
+	}
+	idb_remove(online_db,account_id);
+}
+
+int waiting_disconnect_timer(int tid, unsigned int tick, int id, int data)
+{
+	struct online_login_data *p;
+	if ((p= idb_get(online_db, id)) != NULL && p->waiting_disconnect)
+		remove_online_user(id);
+	return 0;
+}
+
+//-----------------------------------------------------
+// Read GM accounts
+//-----------------------------------------------------
+void read_gm_account(void) {
+	MYSQL_RES* sql_res ;
+	MYSQL_ROW sql_row;
+
+	if (gm_account_db != NULL)
+		aFree(gm_account_db);
+	GM_num = 0;
+
+	sprintf(tmp_sql, "SELECT `%s`,`%s` FROM `%s` WHERE `%s`>='%d'",login_db_account_id,login_db_level,login_db,login_db_level,lowest_gm_level);
+	if (mysql_query(&mysql_handle, tmp_sql)) {
+		ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+		ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
+	}
+	sql_res = mysql_store_result(&mysql_handle);
+	if (sql_res) {
+		gm_account_db = (struct gm_account*)aCalloc((size_t)mysql_num_rows(sql_res), sizeof(struct gm_account));
+		while ((sql_row = mysql_fetch_row(sql_res))) {
+			gm_account_db[GM_num].account_id = atoi(sql_row[0]);
+			gm_account_db[GM_num].level = atoi(sql_row[1]);
+			GM_num++;
+		}
+	}
+
+	mysql_free_result(sql_res);
+}
+
+int charif_sendallwos(int sfd, unsigned char *buf, unsigned int len);
+
+//-----------------------------------------------------
+// Send GM accounts to all char-server
+//-----------------------------------------------------
+void send_GM_accounts(int fd) {
+	int i;
+	unsigned char buf[32767];
+	int len;
+
+	len = 4;
+	WBUFW(buf,0) = 0x2732;
+	for(i = 0; i < GM_num; i++)
+		// send only existing accounts. We can not create a GM account when server is online.
+		if (gm_account_db[i].level > 0) {
+			WBUFL(buf,len) = gm_account_db[i].account_id;
+			WBUFB(buf,len+4) = (unsigned char)gm_account_db[i].level;
+			len += 5;
+		}
+	WBUFW(buf,2) = len;
+	if (fd == -1)
+		charif_sendallwos(-1, buf, len);
+	else
+	{
+		memcpy(WFIFOP(fd,0), buf, len);
+		WFIFOSET(fd,len);
+	}
+	return;
 }
 
 //-----------------------------------------------------
 // check user level
 //-----------------------------------------------------
-
+/*
 int isGM(int account_id) {
 	int level;
 
@@ -192,7 +268,8 @@ int isGM(int account_id) {
 	level = 0;
 	sprintf(tmpsql,"SELECT `%s` FROM `%s` WHERE `%s`='%d'", login_db_level, login_db, login_db_account_id, account_id);
 	if (mysql_query(&mysql_handle, tmpsql)) {
-		printf("DB server Error (select GM Level to Memory)- %s\n", mysql_error(&mysql_handle));
+		ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+		ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 	}
 	sql_res = mysql_store_result(&mysql_handle);
 	if (sql_res) {
@@ -211,6 +288,7 @@ int isGM(int account_id) {
 
 	return level;
 }
+*/
 
 //---------------------------------------------------
 // E-mail check: return 0 (not correct) or 1 (valid).
@@ -256,31 +334,64 @@ int e_mail_check(char *email) {
 //-----------------------------------------------------
 int mmo_auth_sqldb_init(void) {
 
-	printf("Login server init....\n");
+	ShowStatus("Login server init....\n");
 
 	// memory initialize
-	printf("memory initialize....\n");
+	ShowStatus("memory initialize....\n");
 
 	mysql_init(&mysql_handle);
 
 	// DB connection start
-	printf("Connect Login Database Server....\n");
+	ShowStatus("Connect Login Database Server....\n");
 	if (!mysql_real_connect(&mysql_handle, login_server_ip, login_server_id, login_server_pw,
 	    login_server_db, login_server_port, (char *)NULL, 0)) {
 		// pointer check
-		printf("%s\n", mysql_error(&mysql_handle));
+		ShowFatalError("%s\n", mysql_error(&mysql_handle));
 		exit(1);
 	} else {
-		printf("connect success!\n");
+		ShowStatus("Connect success!\n");
+	}
+	if( strlen(default_codepage) > 0 ) {
+		sprintf( tmpsql, "SET NAMES %s", default_codepage );
+		if (mysql_query(&mysql_handle, tmpsql)) {
+			ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+			ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmpsql);
+		}
 	}
 
-	sprintf(tmpsql, "INSERT DELAYED INTO `%s`(`time`,`ip`,`user`,`rcode`,`log`) VALUES (NOW(), '', 'lserver', '100','login server started')", loginlog_db);
+	if (log_login)
+	{
+		sprintf(tmpsql, "INSERT DELAYED INTO `%s`(`time`,`ip`,`user`,`rcode`,`log`) VALUES (NOW(), '', 'lserver', '100','login server started')", loginlog_db);
 
-	//query
-	if (mysql_query(&mysql_handle, tmpsql)) {
-			printf("DB server Error - %s\n", mysql_error(&mysql_handle));
+		//query
+		if (mysql_query(&mysql_handle, tmpsql)) {
+			ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+			ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
+		}
 	}
-
+	if (new_account_flag)
+	{	//Check if the next new account will need to have it's ID set (to avoid bad DBs which would otherwise insert
+		//new accounts with account_ids of less than 2M [Skotlex]
+		sprintf(tmp_sql, "SELECT max(`%s`) from `%s`", login_db_account_id, login_db);
+		if(mysql_query(&mysql_handle, tmp_sql)){
+			ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+			ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
+		} else {
+			MYSQL_RES* 	sql_res;
+			MYSQL_ROW	sql_row;
+			
+			sql_res = mysql_store_result(&mysql_handle) ;
+			if (sql_res)
+			{
+				if (mysql_num_rows(sql_res) > 0 &&
+					(sql_row = mysql_fetch_row(sql_res)) != NULL &&
+					sql_row[0] != NULL && atoi(sql_row[0]) >= account_id_count)
+				//Ok, chars already exist, no need to use this.
+					account_id_count = 0;
+				mysql_free_result(sql_res);
+			}
+		}
+	}
 	return 0;
 }
 
@@ -299,45 +410,107 @@ void mmo_db_close(void) {
 	int i, fd;
 
 	//set log.
-	sprintf(tmpsql,"INSERT DELAYED INTO `%s`(`time`,`ip`,`user`,`rcode`,`log`) VALUES (NOW(), '', 'lserver','100', 'login server shutdown')", loginlog_db);
+	if (log_login)
+	{
+		sprintf(tmpsql,"INSERT DELAYED INTO `%s`(`time`,`ip`,`user`,`rcode`,`log`) VALUES (NOW(), '', 'lserver','100', 'login server shutdown')", loginlog_db);
 
-	//query
-	if (mysql_query(&mysql_handle, tmpsql)) {
-			printf("DB server Error - %s\n", mysql_error(&mysql_handle));
+		//query
+		if (mysql_query(&mysql_handle, tmpsql)) {
+			ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+			ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
+		}
 	}
-
+/*
 	//delete all server status
 	sprintf(tmpsql,"DELETE FROM `sstatus`");
 	//query
 	if (mysql_query(&mysql_handle, tmpsql)) {
-		printf("DB server Error - %s\n", mysql_error(&mysql_handle));
+		ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+		ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 	}
-
 	mysql_close(&mysql_handle);
-	printf("close DB connect....\n");
+	ShowStatus("close DB connect....\n");
+*/
 
 	for (i = 0; i < MAX_SERVERS; i++) {
 		if ((fd = server_fd[i]) >= 0)
+		{	//Clean only data related to servers we are connected to. [Skotlex]
+			sprintf(tmpsql,"DELETE FROM `sstatus` WHERE `index` = '%d'", i);
+			if (mysql_query(&mysql_handle, tmpsql))
+			{
+				ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+				ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
+			}
 			delete_session(fd);
+		}
 	}
+	mysql_close(&mysql_handle);
+	ShowStatus("close DB connect....\n");
 	delete_session(login_fd);
 }
 
 //-----------------------------------------------------
 // Make new account
 //-----------------------------------------------------
-int mmo_auth_sqldb_new(struct mmo_account* account,const char *tmpstr, char sex) {
-	//no need on DB version
+int mmo_auth_new(struct mmo_account* account, char sex)
+{
+	MYSQL_RES* 	sql_res;
+	unsigned int tick = gettick();
+	char user_password[256];
+	//Account Registration Flood Protection by [Kevin]
+	if(tick <= new_reg_tick && num_regs >= allowed_regs) {
+		ShowNotice("Account registration denied (registration limit exceeded)\n");
+		return 3;
+	}
+	
+	//Check for preexisting account
+	sprintf(tmp_sql, "SELECT `%s` FROM `%s` WHERE `userid` = '%s'", login_db_userid, login_db, account->userid);
+	if(mysql_query(&mysql_handle, tmp_sql)){
+		ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+		ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
+		return 1; //Return Incorrect user/pass?
+	}
 
-	printf("Request new account.... - not support on this version\n");
+	sql_res = mysql_store_result(&mysql_handle);
+	if(mysql_num_rows(sql_res) > 0){
+		mysql_free_result(sql_res);
+		return 1; //Already exists, return incorrect user/pass.
+	}
+	mysql_free_result(sql_res); //Only needed for the already-exists check...
 
-	return 0;
-}
+	mysql_real_escape_string(&mysql_handle, account->userid, account->userid, strlen(account->userid));
+	mysql_real_escape_string(&mysql_handle, account->passwd, account->passwd, strlen(account->passwd));
 
-//-----------------------------------------------------
-// Make new account
-//-----------------------------------------------------
-int mmo_auth_new(struct mmo_account* account, const char *tmpstr, char sex) {
+	if (sex == 'f') sex = 'F';
+	else if (sex == 'm') sex = 'M';
+	if (use_md5_passwds)
+		MD5_String(account->passwd,user_password);
+	else
+		jstrescapecpy(user_password, account->passwd);
+
+	ShowInfo("New account: user: %s with passwd: %s sex: %c\n", account->userid, user_password, sex);
+
+	if (account_id_count) //Force new Account ID
+		sprintf(tmp_sql, "INSERT INTO `%s` (`%s`, `%s`, `%s`, `sex`, `email`) VALUES ('%d', '%s', '%s', '%c', '%s')", login_db, login_db_account_id, login_db_userid, login_db_user_pass, account_id_count, account->userid, user_password, sex, "a@a.com");
+	else
+		sprintf(tmp_sql, "INSERT INTO `%s` (`%s`, `%s`, `sex`, `email`) VALUES ('%s', '%s', '%c', '%s')", login_db, login_db_userid, login_db_user_pass, account->userid, user_password, sex, "a@a.com");
+		
+	if(mysql_query(&mysql_handle, tmp_sql)){
+		//Failed to insert new acc :/
+		ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+		ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
+		return 1;
+	}
+
+	if (account_id_count) //Clear it or all new accounts will try to use the same id :P
+		account_id_count = 0;
+
+	if(tick > new_reg_tick)
+	{	//Update the registration check.
+		num_regs=0;
+		new_reg_tick=gettick()+time_allowed*1000;
+	}
+	num_regs++;
 
 	return 0;
 }
@@ -346,12 +519,30 @@ int mmo_auth_new(struct mmo_account* account, const char *tmpstr, char sex) {
 extern void gettimeofday(struct timeval *t, struct timezone *dummy);
 #endif
 
+// Send to char
+int charif_sendallwos(int sfd, unsigned char *buf, unsigned int len) {
+	int i, c;
+	int fd;
+
+	c = 0;
+	for(i = 0; i < MAX_SERVERS; i++) {
+		if ((fd = server_fd[i]) > 0 && fd != sfd) {
+			if (WFIFOSPACE(fd) < len) //Increase buffer size.
+				realloc_writefifo(fd, len);
+			memcpy(WFIFOP(fd,0), buf, len);
+			WFIFOSET(fd,len);
+			c++;
+		}
+	}
+
+	return c;
+}
+
 //-----------------------------------------------------
 // Auth
 //-----------------------------------------------------
 int mmo_auth( struct mmo_account* account , int fd){
-	struct timeval tv;
-	time_t ban_until_time;
+	time_t ban_until_time, raw_time;
 	char tmpstr[256];
 	char t_uid[256], t_pass[256];
 	char user_password[256];
@@ -369,41 +560,29 @@ int mmo_auth( struct mmo_account* account , int fd){
 	unsigned char *sin_addr = (unsigned char *)&session[fd]->client_addr.sin_addr;
 
 
-	printf ("auth start...\n");
 	sprintf(ip, "%d.%d.%d.%d", sin_addr[0], sin_addr[1], sin_addr[2], sin_addr[3]);
+	ShowInfo("auth start for %s...\n", ip);
 	
 	//accountreg with _M/_F .. [Sirius]
 	len = strlen(account->userid) -2;
 	
-             if (account->passwdenc == 0 && account->userid[len] == '_' &&
-                 (account->userid[len+1] == 'F' || account->userid[len+1] == 'M') && new_account_flag == 1 &&
-                      account_id_count <= END_ACCOUNT_NUM && len >= 4 && strlen(account->passwd) >= 4) {
-                          if (new_account_flag == 1) 
-                                        account->userid[len] = '\0';                       	                                        
-                                      	sprintf(tmp_sql, "SELECT `%s` FROM `%s` WHERE `userid` = '%s'", login_db_userid, login_db, account->userid);
-					if(mysql_query(&mysql_handle, tmp_sql)){
-						printf("SQL error (_M/_F reg): %s", mysql_error(&mysql_handle));
-					}else{
-					sql_res = mysql_store_result(&mysql_handle);
-						if(mysql_num_rows(sql_res) == 0){
-						//ok no existing acc,
-							printf("Adding a new account user: %s with passwd: %s sex: %c (ip: %s)\n", account->userid, account->passwd, account->userid[len+1], ip);
-							sprintf(tmp_sql, "INSERT INTO `%s` (`%s`, `%s`, `sex`, `email`) VALUES ('%s', '%s', '%c', '%s')", login_db, login_db_userid, login_db_user_pass, account->userid, account->passwd, account->userid[len+1], "a@a.com");
-							if(mysql_query(&mysql_handle, tmp_sql)){
-								//Failed to insert new acc :/
-								printf("SQL Error (_M/_F reg) .. insert ..: %s", mysql_error(&mysql_handle));
-							}//sql query check to insert
-						}//rownum check (0!)
-					mysql_free_result(sql_res);
-					}//sqlquery                              
-	     }//all values for NEWaccount ok ?
-                                                                                                               
-
+	if (account->passwdenc == 0 && account->userid[len] == '_' &&
+		(account->userid[len+1] == 'F' || account->userid[len+1] == 'M' ||
+		account->userid[len+1] == 'f' || account->userid[len+1] == 'm') &&
+		new_account_flag == 1 && 
+		len >= 4 && strlen(account->passwd) >= 4)
+	{
+		int result;
+		account->userid[len] = '\0'; //Terminating the name.
+		if ((result = mmo_auth_new(account, account->userid[len+1])))
+			return result; //Failed to make account. [Skotlex].
+	}
 
  	// auth start : time seed
-	gettimeofday(&tv, NULL);
-	strftime(tmpstr, 24, "%Y-%m-%d %H:%M:%S",localtime((const time_t*)&(tv.tv_sec)));
-	sprintf(tmpstr+19, ".%03d", (int)tv.tv_usec/1000);
+	// Platform/Compiler dependant clock() for time check is removed. [Lance]
+	// clock() is originally used to track processing ticks on program execution.
+	time(&raw_time);
+	strftime(tmpstr, 24, "%Y-%m-%d %H:%M:%S",localtime(&raw_time));
 
 	jstrescapecpy(t_uid,account->userid);
 	jstrescapecpy(t_pass, account->passwd);
@@ -412,23 +591,24 @@ int mmo_auth( struct mmo_account* account , int fd){
 	// make query
 	sprintf(tmpsql, "SELECT `%s`,`%s`,`%s`,`lastlogin`,`logincount`,`sex`,`connect_until`,`last_ip`,`ban_until`,`state`,`%s`"
 	                " FROM `%s` WHERE %s `%s`='%s'", login_db_account_id, login_db_userid, login_db_user_pass, login_db_level, login_db, case_sensitive ? "BINARY" : "", login_db_userid, t_uid);
-	//login {0-account_id/1-userid/2-user_pass/3-lastlogin/4-logincount/5-sex/6-connect_untl/7-last_ip/8-ban_until/9-state}
+	//login {0-account_id/1-userid/2-user_pass/3-lastlogin/4-logincount/5-sex/6-connect_untl/7-last_ip/8-ban_until/9-state/10-level}
 
 	// query
 	if (mysql_query(&mysql_handle, tmpsql)) {
-		printf("DB server Error - %s\n", mysql_error(&mysql_handle));
+		ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+		ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 	}
 	sql_res = mysql_store_result(&mysql_handle) ;
 	if (sql_res) {
 		sql_row = mysql_fetch_row(sql_res);	//row fetching
 		if (!sql_row) {
 			//there's no id.
-			printf ("auth failed no account %s %s %s\n", tmpstr, account->userid, account->passwd);
+			ShowNotice("auth failed: no such account %s %s %s\n", tmpstr, account->userid, account->passwd);
 			mysql_free_result(sql_res);
 			return 0;
 		}
 	} else {
-		printf("mmo_auth DB result error ! \n");
+		ShowError("mmo_auth DB result error ! \n");
 		return 0;
 	}
 	
@@ -436,7 +616,7 @@ int mmo_auth( struct mmo_account* account , int fd){
         if(check_client_version == 1 && account->version != 0){
         	if(account->version != client_version_to_connect){
 			mysql_free_result(sql_res);
-			return 6;
+			return 5;
 		}
 	}           
 	                                                                        
@@ -475,11 +655,11 @@ int mmo_auth( struct mmo_account* account , int fd){
 		} else {
 			jstrescapecpy(user_password, account->passwd);
 		}
-		printf("account id ok encval:%d\n",account->passwdenc);
+		ShowInfo("account id ok encval:%d\n",account->passwdenc);
 #ifdef PASSWORDENC
 		if (account->passwdenc > 0) {
 			int j = account->passwdenc;
-			printf ("start md5calc..\n");
+			ShowInfo("start md5calc..\n");
 			if (j > 2)
 				j = 1;
 			do {
@@ -489,18 +669,18 @@ int mmo_auth( struct mmo_account* account , int fd){
 					sprintf(md5str, "%s%s", sql_row[2], md5key);
 				} else
 					md5str[0] = 0;
-				printf("j:%d mdstr:%s\n", j, md5str);
+				ShowDebug("j:%d mdstr:%s\n", j, md5str);
 				MD5_String2binary(md5str, md5bin);
 				encpasswdok = (memcmp(user_password, md5bin, 16) == 0);
 			} while (j < 2 && !encpasswdok && (j++) != account->passwdenc);
 			//printf("key[%s] md5 [%s] ", md5key, md5);
-			printf("client [%s] accountpass [%s]\n", user_password, sql_row[2]);
-			printf ("end md5calc..\n");
+			ShowInfo("client [%s] accountpass [%s]\n", user_password, sql_row[2]);
+			ShowInfo("end md5calc..\n");
 		}
 #endif
 		if ((strcmp(user_password, sql_row[2]) && !encpasswdok)) {
 			if (account->passwdenc == 0) {
-				printf ("auth failed pass error %s %s %s" RETCODE, tmpstr, account->userid, user_password);
+				ShowNotice("auth failed pass error %s %s %s" RETCODE, tmpstr, account->userid, user_password);
 #ifdef PASSWORDENC
 			} else {
 				char logbuf[1024], *p = logbuf;
@@ -515,12 +695,12 @@ int mmo_auth( struct mmo_account* account , int fd){
 				for(j = 0; j < md5keylen; j++)
 					p += sprintf(p, "%02x", ((unsigned char *)md5key)[j]);
 				p += sprintf(p, "]" RETCODE);
-				printf("%s\n", p);
+				ShowNotice("%s\n", p);
 #endif
 			}
 			return 1;
 		}
-		printf("auth ok %s %s" RETCODE, tmpstr, account->userid);
+		ShowInfo("auth ok %s %s" RETCODE, tmpstr, account->userid);
 	}
 
 /*
@@ -570,24 +750,37 @@ int mmo_auth( struct mmo_account* account , int fd){
 				sprintf(tmpsql, "UPDATE `%s` SET `ban_until`='0' WHERE %s `%s`='%s'", login_db, case_sensitive ? "BINARY" : "", login_db_userid, t_uid);
 
 			if (mysql_query(&mysql_handle, tmpsql)) {
-				printf("DB server Error - %s\n", mysql_error(&mysql_handle));
+				ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+				ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 			}
 		}
 	}
 
 	if (atoi(sql_row[9])) {
 		switch(atoi(sql_row[9])) { // packet 0x006a value + 1
-		case 1:   // 0 = Unregistered ID
-		case 2:   // 1 = Incorrect Password
-		case 3:   // 2 = This ID is expired
-		case 4:   // 3 = Rejected from Server
-		case 5:   // 4 = You have been blocked by the GM Team
-		case 6:   // 5 = Your Game's EXE file is not the latest version
-		case 7:   // 6 = Your are Prohibited to log in until %s
-		case 8:   // 7 = Server is jammed due to over populated
-		case 9:   // 8 = No MSG (actually, all states after 9 except 99 are No MSG, use only this)
+		case 1: // 0 = Unregistered ID
+		case 2: // 1 = Incorrect Password
+		case 3: // 2 = This ID is expired
+		case 4: // 3 = Rejected from Server
+		case 5: // 4 = You have been blocked by the GM Team
+		case 6: // 5 = Your Game's EXE file is not the latest version
+		case 7: // 6 = Your are Prohibited to log in until %s
+		case 8: // 7 = Server is jammed due to over populated
+		case 9: // 8 = No more accounts may be connected from this company
+		case 10: // 9 = MSI_REFUSE_BAN_BY_DBA
+		case 11: // 10 = MSI_REFUSE_EMAIL_NOT_CONFIRMED
+		case 12: // 11 = MSI_REFUSE_BAN_BY_GM
+		case 13: // 12 = MSI_REFUSE_TEMP_BAN_FOR_DBWORK
+		case 14: // 13 = MSI_REFUSE_SELF_LOCK
+		case 15: // 14 = MSI_REFUSE_NOT_PERMITTED_GROUP
+		case 16: // 15 = MSI_REFUSE_NOT_PERMITTED_GROUP
 		case 100: // 99 = This ID has been totally erased
-			printf("Auth Error #%d\n", atoi(sql_row[9]));
+		case 101: // 100 = Login information remains at %s.
+		case 102: // 101 = Account has been locked for a hacking investigation. Please contact the GM Team for more information
+		case 103: // 102 = This account has been temporarily prohibited from login due to a bug-related investigation
+		case 104: // 103 = This character is being deleted. Login is temporarily unavailable for the time being
+		case 105: // 104 = Your spouse character is being deleted. Login is temporarily unavailable for the time being
+			ShowNotice("Auth Error #%d\n", atoi(sql_row[9]));
 			return atoi(sql_row[9]) - 1;
 			break;
 		default:
@@ -600,11 +793,20 @@ int mmo_auth( struct mmo_account* account , int fd){
 		return 2; // 2 = This ID is expired
 	}
 
-	if ( is_user_online(atol(sql_row[0])) && register_users_online > 0) {
-	        printf("User [%s] is already online - Rejected.\n",sql_row[1]);
-#ifndef TWILIGHT
-		return 3; // Rejected
-#endif
+	if (online_check) {
+		struct online_login_data* data = idb_get(online_db,atoi(sql_row[0]));
+		unsigned char buf[8];
+		if (data && data->char_server > -1) {
+			//Request char servers to kick this account out. [Skotlex]
+			ShowWarning("User [%s] is already online - Rejected.\n",sql_row[1]);
+			WBUFW(buf,0) = 0x2734;
+			WBUFL(buf,2) = atol(sql_row[0]);
+			charif_sendallwos(-1, buf, 6);
+			if (!data->waiting_disconnect)
+				add_timer(gettick()+30000, waiting_disconnect_timer, atol(sql_row[0]), 0);
+			data->waiting_disconnect = 1;
+			return 3; // Rejected
+		}
 	}
 
 	account->account_id = atoi(sql_row[0]);
@@ -613,32 +815,30 @@ int mmo_auth( struct mmo_account* account , int fd){
 	memcpy(tmpstr, sql_row[3], 19);
 	memcpy(account->lastlogin, tmpstr, 24);
 	account->sex = sql_row[5][0] == 'S' ? 2 : sql_row[5][0]=='M';
+	account->level = atoi(sql_row[10]) > 99 ? 99 : atoi(sql_row[10]); // as was in isGM() [zzo]
 
+	if (account->sex != 2 && account->account_id < 700000)
+		ShowWarning("Account %s has account id %d! Account IDs must be over 700000 to work properly!\n", account->userid, account->account_id);
 	sprintf(tmpsql, "UPDATE `%s` SET `lastlogin` = NOW(), `logincount`=`logincount` +1, `last_ip`='%s'  WHERE %s  `%s` = '%s'",
 	        login_db, ip, case_sensitive ? "BINARY" : "", login_db_userid, sql_row[1]);
 	mysql_free_result(sql_res) ; //resource free
 	if (mysql_query(&mysql_handle, tmpsql)) {
-		printf("DB server Error - %s\n", mysql_error(&mysql_handle));
+		ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+		ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 	}
 
 	return -1;
 }
 
-// Send to char
-int charif_sendallwos(int sfd, unsigned char *buf, unsigned int len) {
-	int i, c;
-	int fd;
-
-	c = 0;
-	for(i = 0; i < MAX_SERVERS; i++) {
-		if ((fd = server_fd[i]) > 0 && fd != sfd) {
-			memcpy(WFIFOP(fd,0), buf, len);
-			WFIFOSET(fd,len);
-			c++;
-		}
-	}
-
-	return c;
+static int online_db_setoffline(DBKey key, void* data, va_list ap) {
+	struct online_login_data *p = (struct online_login_data *)data;
+	int server = va_arg(ap, int);
+	if (server == -1) {
+		p->char_server = -1;
+		p->waiting_disconnect = 0;
+	} else if (p->char_server == server)
+		p->char_server = -2; //Char server disconnected.
+	return 0;
 }
 
 //-----------------------------------------------------
@@ -662,18 +862,19 @@ int parse_fromchar(int fd){
 		session[fd]->eof = 1;
 	if(session[fd]->eof) {
 		if (id < MAX_SERVERS) {
-			printf("Char-server '%s' has disconnected.\n", server[id].name);
+			ShowStatus("Char-server '%s' has disconnected.\n", server[id].name);
 			server_fd[id] = -1;
 			memset(&server[id], 0, sizeof(struct mmo_char_server));
+			online_db->foreach(online_db,online_db_setoffline,id); //Set all chars from this char server to offline.
 			// server delete
 			sprintf(tmpsql, "DELETE FROM `sstatus` WHERE `index`='%d'", id);
 			// query
 			if (mysql_query(&mysql_handle, tmpsql)) {
-				printf("DB server Error - %s\n", mysql_error(&mysql_handle));
+				ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+				ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 			}
 		}
-		close(fd);
-		delete_session(fd);
+		do_close(fd);
 		return 0;
 	}
 
@@ -681,6 +882,21 @@ int parse_fromchar(int fd){
 //		printf("char_parse: %d %d packet case=%x\n", fd, RFIFOREST(fd), RFIFOW(fd, 0));
 
 		switch (RFIFOW(fd,0)) {
+		case 0x2709:
+			if (log_login)
+			{
+				sprintf(tmpsql,"INSERT DELAYED INTO `%s`(`time`,`ip`,`user`,`rcode`,`log`) VALUES (NOW(), '%d.%d.%d.%d', '%s','%s', 'GM reload request')", loginlog_db, p[0], p[1], p[2], p[3], server[id].name, RETCODE);
+				if (mysql_query(&mysql_handle, tmpsql)) {
+					ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+					ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
+				}
+			}
+			read_gm_account();
+			// send GM accounts to all char-servers
+			send_GM_accounts(-1);
+			RFIFOSKIP(fd,2);
+			break;
+
 		case 0x2712:
 			if (RFIFOREST(fd) < 19)
 				return 0;
@@ -699,52 +915,33 @@ int parse_fromchar(int fd){
 #endif
 				    !auth_fifo[i].delflag) {
 					auth_fifo[i].delflag = 1;
-					printf("auth -> %d\n", i);
+					ShowDebug("auth -> %d\n", i);
 					break;
 				}
 			}
 
-			if (i != AUTH_FIFO_SIZE) { // send account_reg
-				int p;
+			if (i != AUTH_FIFO_SIZE && account_id > 0) { // send ack 
 				time_t connect_until_time = 0;
 				char email[40] = "";
 				account_id=RFIFOL(fd,2);
 				sprintf(tmpsql, "SELECT `email`,`connect_until` FROM `%s` WHERE `%s`='%d'", login_db, login_db_account_id, account_id);
 				if (mysql_query(&mysql_handle, tmpsql)) {
-					printf("DB server Error - %s\n", mysql_error(&mysql_handle));
+					ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+					ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 				}
 				sql_res = mysql_store_result(&mysql_handle) ;
 				if (sql_res) {
 					sql_row = mysql_fetch_row(sql_res);
 					connect_until_time = atol(sql_row[1]);
 					strcpy(email, sql_row[0]);
-				}
-				mysql_free_result(sql_res);
-				if (account_id > 0) {
-					sprintf(tmpsql, "SELECT `str`,`value` FROM `global_reg_value` WHERE `type`='1' AND `account_id`='%d'",account_id);
-					if (mysql_query(&mysql_handle, tmpsql)) {
-						printf("DB server Error - %s\n", mysql_error(&mysql_handle));
-					}
-					sql_res = mysql_store_result(&mysql_handle) ;
-					if (sql_res) {
-						WFIFOW(fd,0) = 0x2729;
-						WFIFOL(fd,4) = account_id;
-						for(p = 8; (sql_row = mysql_fetch_row(sql_res));p+=36){
-							memcpy(WFIFOP(fd,p), sql_row[0], 32);
-							WFIFOL(fd,p+32) = atoi(sql_row[1]);
-						}
-						WFIFOW(fd,2) = p;
-						WFIFOSET(fd,p);
-						//printf("account_reg2 send : login->char (auth fifo)\n");
-						WFIFOW(fd,0) = 0x2713;
-						WFIFOL(fd,2) = account_id;
-						WFIFOB(fd,6) = 0;
-						memcpy(WFIFOP(fd, 7), email, 40);
-						WFIFOL(fd,47) = (unsigned long) connect_until_time;
-						WFIFOSET(fd,51);
-					}
 					mysql_free_result(sql_res);
 				}
+				WFIFOW(fd,0) = 0x2713;
+				WFIFOL(fd,2) = account_id;
+				WFIFOB(fd,6) = 0;
+				memcpy(WFIFOP(fd, 7), email, 40);
+				WFIFOL(fd,47) = (unsigned long) connect_until_time;
+				WFIFOSET(fd,51);
 			} else {
 				WFIFOW(fd,0) = 0x2713;
 				WFIFOL(fd,2) = account_id;
@@ -761,13 +958,14 @@ int parse_fromchar(int fd){
 			// how many users on world? (update)
 			if (server[id].users != RFIFOL(fd,2))
 			{
-				printf("set users %s : %d\n", server[id].name, RFIFOL(fd,2));
+				ShowStatus("set users %s : %d\n", server[id].name, RFIFOL(fd,2));
 
 				server[id].users = RFIFOL(fd,2);
 				sprintf(tmpsql,"UPDATE `sstatus` SET `user` = '%d' WHERE `index` = '%d'", server[id].users, id);
 				// query
 				if (mysql_query(&mysql_handle, tmpsql)) {
-					printf("DB server Error - %s\n", mysql_error(&mysql_handle));
+					ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+					ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 				}
 			}
 
@@ -789,7 +987,8 @@ int parse_fromchar(int fd){
 			account_id=RFIFOL(fd,2);
 			sprintf(tmpsql,"SELECT `email`,`connect_until` FROM `%s` WHERE `%s`='%d'",login_db, login_db_account_id, account_id);
 			if(mysql_query(&mysql_handle, tmpsql)) {
-				printf("DB server Error - %s\n", mysql_error(&mysql_handle));
+				ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+				ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 			}
 			sql_res = mysql_store_result(&mysql_handle) ;
 			if (sql_res) {
@@ -814,8 +1013,8 @@ int parse_fromchar(int fd){
 			if (RFIFOREST(fd) < RFIFOW(fd,2))
 				return 0;
 			//oldacc = RFIFOL(fd,4);
-			printf("change GM isn't support in this login server version.\n");
-			printf("change GM error 0 %s\n", RFIFOP(fd, 8));
+			ShowWarning("change GM isn't supported in this login server version.\n");
+			ShowError("change GM error 0 %s\n", RFIFOP(fd, 8));
 
 			RFIFOSKIP(fd, RFIFOW(fd, 2));
 			WFIFOW(fd, 0) = 0x2721;
@@ -835,18 +1034,21 @@ int parse_fromchar(int fd){
 			memcpy(actual_email, RFIFOP(fd,6), 40);
 			memcpy(new_email, RFIFOP(fd,46), 40);
 			if (e_mail_check(actual_email) == 0)
-				printf("Char-server '%s': Attempt to modify an e-mail on an account (@email GM command), but actual email is invalid (account: %d, ip: %s)" RETCODE,
+				ShowWarning("Char-server '%s': Attempt to modify an e-mail on an account (@email GM command), but actual email is invalid (account: %d, ip: %s)" RETCODE,
 				          server[id].name, acc, ip);
 			else if (e_mail_check(new_email) == 0)
-				printf("Char-server '%s': Attempt to modify an e-mail on an account (@email GM command) with a invalid new e-mail (account: %d, ip: %s)" RETCODE,
+				ShowWarning("Char-server '%s': Attempt to modify an e-mail on an account (@email GM command) with a invalid new e-mail (account: %d, ip: %s)" RETCODE,
 				          server[id].name, acc, ip);
 			else if (strcmpi(new_email, "a@a.com") == 0)
-				printf("Char-server '%s': Attempt to modify an e-mail on an account (@email GM command) with a default e-mail (account: %d, ip: %s)" RETCODE,
+				ShowWarning("Char-server '%s': Attempt to modify an e-mail on an account (@email GM command) with a default e-mail (account: %d, ip: %s)" RETCODE,
 				          server[id].name, acc, ip);
 			else {
 				sprintf(tmpsql, "SELECT `%s`,`email` FROM `%s` WHERE `%s` = '%d'", login_db_userid, login_db, login_db_account_id, acc);
 				if (mysql_query(&mysql_handle, tmpsql))
-					printf("DB server Error - %s\n", mysql_error(&mysql_handle));
+				{
+					ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+					ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
+				}
 				sql_res = mysql_store_result(&mysql_handle);
 				if (sql_res) {
 					sql_row = mysql_fetch_row(sql_res);	//row fetching
@@ -855,9 +1057,10 @@ int parse_fromchar(int fd){
 						sprintf(tmpsql, "UPDATE `%s` SET `email` = '%s' WHERE `%s` = '%d'", login_db, new_email, login_db_account_id, acc);
 						// query
 						if (mysql_query(&mysql_handle, tmpsql)) {
-							printf("DB server Error - %s\n", mysql_error(&mysql_handle));
+							ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+							ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 						}
-						printf("Char-server '%s': Modify an e-mail on an account (@email GM command) (account: %d (%s), new e-mail: %s, ip: %s)." RETCODE,
+						ShowInfo("Char-server '%s': Modify an e-mail on an account (@email GM command) (account: %d (%s), new e-mail: %s, ip: %s)." RETCODE,
 						      server[id].name, acc, sql_row[0], actual_email, ip);
 					}
 				}
@@ -876,7 +1079,8 @@ int parse_fromchar(int fd){
 			statut = RFIFOL(fd,6);
 			sprintf(tmpsql, "SELECT `state` FROM `%s` WHERE `%s` = '%d'", login_db, login_db_account_id, acc);
 			if (mysql_query(&mysql_handle, tmpsql)) {
-				printf("DB server Error - %s\n", mysql_error(&mysql_handle));
+				ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+				ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 			}
 			sql_res = mysql_store_result(&mysql_handle);
 			if (sql_res) {
@@ -893,7 +1097,8 @@ int parse_fromchar(int fd){
 			sprintf(tmpsql,"UPDATE `%s` SET `state` = '%d' WHERE `%s` = '%d'", login_db, statut,login_db_account_id,acc);
 			//query
 			if(mysql_query(&mysql_handle, tmpsql)) {
-				printf("DB server Error - %s\n", mysql_error(&mysql_handle));
+				ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+				ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 			}
 			RFIFOSKIP(fd,10);
 		  }
@@ -909,7 +1114,8 @@ int parse_fromchar(int fd){
 			acc = RFIFOL(fd,2);
 			sprintf(tmpsql, "SELECT `ban_until` FROM `%s` WHERE `%s` = '%d'",login_db,login_db_account_id,acc);
 			if (mysql_query(&mysql_handle, tmpsql)) {
-				printf("DB server Error - %s\n", mysql_error(&mysql_handle));
+				ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+				ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 			}
 			sql_res = mysql_store_result(&mysql_handle);
 			if (sql_res) {
@@ -937,14 +1143,15 @@ int parse_fromchar(int fd){
 						WBUFW(buf,0) = 0x2731;
 						WBUFL(buf,2) = acc;
 						WBUFB(buf,6) = 1; // 0: change of statut, 1: ban
-						WBUFL(buf,7) = timestamp; // status or final date of a banishment
+						WBUFL(buf,7) = (unsigned int)timestamp; // status or final date of a banishment
 						charif_sendallwos(-1, buf, 11);
 					}
-					printf("Account: %d Banned until: %ld\n", acc, timestamp);
-					sprintf(tmpsql, "UPDATE `%s` SET `ban_until` = '%ld', `state`='7' WHERE `%s` = '%d'", login_db, timestamp, login_db_account_id, acc);
+					ShowNotice("Account: %d Banned until: %ld\n", acc, timestamp);
+					sprintf(tmpsql, "UPDATE `%s` SET `ban_until` = '%ld', `state`='7' WHERE `%s` = '%d'", login_db, (unsigned long)timestamp, login_db_account_id, acc);
 					// query
 					if (mysql_query(&mysql_handle, tmpsql)) {
-						printf("DB server Error - %s\n", mysql_error(&mysql_handle));
+						ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+						ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 					}
 				}
 			}
@@ -959,13 +1166,14 @@ int parse_fromchar(int fd){
 		  {
 				int acc,sex;
 				unsigned char buf[16];
-				acc=RFIFOL(fd,4);
+				acc=RFIFOL(fd,2);
 				sprintf(tmpsql,"SELECT `sex` FROM `%s` WHERE `%s` = '%d'",login_db,login_db_account_id,acc);
 
-	        if(mysql_query(&mysql_handle, tmpsql)) {
-                    printf("DB server Error - %s\n", mysql_error(&mysql_handle));
-		    return 0;
-                }
+			if(mysql_query(&mysql_handle, tmpsql)) {
+				ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+				ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
+				return 0;
+			}
 
 	        sql_res = mysql_store_result(&mysql_handle) ;
 
@@ -984,7 +1192,8 @@ int parse_fromchar(int fd){
 				sprintf(tmpsql,"UPDATE `%s` SET `sex` = '%c' WHERE `%s` = '%d'", login_db, (sex==0?'M':'F'), login_db_account_id, acc);
 				//query
 				if(mysql_query(&mysql_handle, tmpsql)) {
-					printf("DB server Error - %s\n", mysql_error(&mysql_handle));
+					ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+					ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 				}
 				WBUFW(buf,0) = 0x2723;
 				WBUFL(buf,2) = acc;
@@ -994,28 +1203,37 @@ int parse_fromchar(int fd){
 			  }
 			  return 0;
 
-			case 0x2728:	// save account_reg
+			case 0x2728:	// save account_reg2
 				if (RFIFOREST(fd) < 4 || RFIFOREST(fd) < RFIFOW(fd,2))
 					return 0;
-			  {
-				int acc,p,j;
-				char str[32];
-				char temp_str[32];
-				int value;
-				acc=RFIFOL(fd,4);
-
-				if (acc>0){
-					unsigned char buf[RFIFOW(fd,2)+1];
-					for(p=8,j=0;p<RFIFOW(fd,2) && j<ACCOUNT_REG2_NUM;p+=36,j++){
-						memcpy(str,RFIFOP(fd,p),32);
-						value=RFIFOL(fd,p+32);
-						sprintf(tmpsql,"DELETE FROM `global_reg_value` WHERE `type`='1' AND `account_id`='%d' AND `str`='%s';",acc,jstrescapecpy(temp_str,str));
+				if (RFIFOL(fd,4) > 0) {
+					int acc,p,j,len;
+					char str[32];
+					char temp_str[64]; //Needs twice as much space as the original string.
+					char temp_str2[512];
+					char value[256];
+					unsigned char *buf;
+					acc=RFIFOL(fd,4);
+					buf = (unsigned char*)aCalloc(RFIFOW(fd,2)+1, sizeof(unsigned char));
+					//Delete all global account variables....
+					sprintf(tmpsql,"DELETE FROM `%s` WHERE `type`='1' AND `account_id`='%d';",reg_db,acc);
+					if(mysql_query(&mysql_handle, tmpsql)) {
+						ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+						ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
+					}
+					//Proceed to insert them....
+					for(j=0,p=13;j<ACCOUNT_REG2_NUM && p<RFIFOW(fd,2);j++){
+						sscanf(RFIFOP(fd,p), "%31c%n",str,&len);
+						str[len]='\0';
+						p +=len+1; //+1 to skip the '\0' between strings.
+						sscanf(RFIFOP(fd,p), "%255c%n",value,&len);
+						value[len]='\0';
+						p +=len+1;
+						
+						sprintf(tmpsql,"INSERT INTO `%s` (`type`, `account_id`, `str`, `value`) VALUES ( 1 , '%d' , '%s' , '%s');",  reg_db, acc, jstrescapecpy(temp_str,str), jstrescapecpy(temp_str2,value));
 						if(mysql_query(&mysql_handle, tmpsql)) {
-							printf("DB server Error - %s\n", mysql_error(&mysql_handle));
-						}
-						sprintf(tmpsql,"INSERT INTO `global_reg_value` (`type`, `account_id`, `str`, `value`) VALUES ( 1 , '%d' , '%s' , '%d');",  acc, jstrescapecpy(temp_str,str), value);
-						if(mysql_query(&mysql_handle, tmpsql)) {
-							printf("DB server Error - %s\n", mysql_error(&mysql_handle));
+							ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+							ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 						}
 					}
 
@@ -1023,8 +1241,8 @@ int parse_fromchar(int fd){
 					memcpy(WBUFP(buf,0),RFIFOP(fd,0),RFIFOW(fd,2));
 					WBUFW(buf,0)=0x2729;
 					charif_sendallwos(fd,buf,WBUFW(buf,2));
+					if (buf) aFree(buf);
 				}
-			  }
 				RFIFOSKIP(fd,RFIFOW(fd,2));
 				//printf("login: save account_reg (from char)\n");
 			    break;
@@ -1037,7 +1255,8 @@ int parse_fromchar(int fd){
 				acc = RFIFOL(fd,2);
 				sprintf(tmpsql,"SELECT `ban_until` FROM `%s` WHERE `%s` = '%d'",login_db,login_db_account_id,acc);
                 if(mysql_query(&mysql_handle, tmpsql)) {
-                    printf("DB server Error - %s\n", mysql_error(&mysql_handle));
+							ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+							ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
                 }
                 sql_res = mysql_store_result(&mysql_handle) ;
                 if (sql_res)	{
@@ -1047,7 +1266,8 @@ int parse_fromchar(int fd){
 				    sprintf(tmpsql,"UPDATE `%s` SET `ban_until` = '0', `state`='0' WHERE `%s` = '%d'", login_db,login_db_account_id,acc);
                     //query
                     if(mysql_query(&mysql_handle, tmpsql)) {
-                        printf("DB server Error - %s\n", mysql_error(&mysql_handle));
+								ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+								ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
                     }
 					break;
 				}
@@ -1058,7 +1278,7 @@ int parse_fromchar(int fd){
     case 0x272b:    // Set account_id to online [Wizputer]
         if (RFIFOREST(fd) < 6)
             return 0;
-        add_online_user(RFIFOL(fd,2));
+        add_online_user(id, RFIFOL(fd,2));
         RFIFOSKIP(fd,6);
         break;
 
@@ -1068,14 +1288,67 @@ int parse_fromchar(int fd){
         remove_online_user(RFIFOL(fd,2));
         RFIFOSKIP(fd,6);
         break;
-
+		case 0x272d:	// Receive list of all online accounts. [Skotlex]
+			if (RFIFOREST(fd) < 4 || RFIFOREST(fd) < RFIFOW(fd,2))
+				return 0;
+			if (!online_check) {
+				RFIFOSKIP(fd,RFIFOW(fd,2));
+				break;	
+			}
+			{
+				struct online_login_data *p;
+				int aid, i, users;
+				online_db->foreach(online_db,online_db_setoffline,id); //Set all chars from this char-server offline first
+				users = RFIFOW(fd,4);
+				for (i = 0; i < users; i++) {
+					aid = RFIFOL(fd,6+i*4);
+					p = idb_ensure(online_db, aid, create_online_user);
+					p->char_server = id;
+				}
+				RFIFOSKIP(fd,RFIFOW(fd,2));
+				break;
+			}
+		case 0x272e: //Request account_reg2 for a character.
+			if (RFIFOREST(fd) < 10)
+				return 0;
+			{
+				int account_id = RFIFOL(fd, 2);
+				int char_id = RFIFOL(fd, 6);
+				int p;
+				RFIFOSKIP(fd,10);
+				sprintf(tmpsql, "SELECT `str`,`value` FROM `%s` WHERE `type`='1' AND `account_id`='%d'",reg_db, account_id);
+				if (mysql_query(&mysql_handle, tmpsql)) {
+					ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+					ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
+					break;
+				}
+				sql_res = mysql_store_result(&mysql_handle) ;
+				if (!sql_res) {
+					break;
+				}
+				WFIFOW(fd,0) = 0x2729;
+				WFIFOL(fd,4) = account_id;
+				WFIFOL(fd,8) = char_id;
+				WFIFOB(fd,12) = 1; //Type 1 for Account2 registry
+				for(p = 13; (sql_row = mysql_fetch_row(sql_res));){
+					if (sql_row[0][0]) {
+						p+= sprintf(WFIFOP(fd,p), "%s", sql_row[0])+1; //We add 1 to consider the '\0' in place.
+						p+= sprintf(WFIFOP(fd,p), "%s", sql_row[1])+1;
+					}
+				}
+				WFIFOW(fd,2) = p;
+				WFIFOSET(fd,WFIFOW(fd,2));
+				mysql_free_result(sql_res);
+			}
+			break;
 	default:
-		printf("login: unknown packet %x! (from char).\n", RFIFOW(fd,0));
+		ShowError("login: unknown packet %x! (from char).\n", RFIFOW(fd,0));
 		session[fd]->eof = 1;
 	return 0;
 	}
 	}
 
+	RFIFOSKIP(fd,RFIFOREST(fd));
 	return 0;
 }
 
@@ -1094,7 +1367,7 @@ int lan_ip_check(unsigned char *p) {
 		lancheck = 0;
 		break; }
 
-	printf("LAN check: %s.\n", (lancheck) ? "\033[1;32mLAN\033[0m" : "\033[1;31mWAN\033[0m");
+	ShowInfo("LAN check: "CL_CYAN"%s"CL_RESET".\n", (lancheck) ? "LAN" : "WAN");
 	return lancheck;
 }
 
@@ -1127,43 +1400,48 @@ int parse_login(int fd) {
 		sprintf(tmpsql, "SELECT count(*) FROM `ipbanlist` WHERE `list` = '%d.*.*.*' OR `list` = '%d.%d.*.*' OR `list` = '%d.%d.%d.*' OR `list` = '%d.%d.%d.%d'",
 		  p[0], p[0], p[1], p[0], p[1], p[2], p[0], p[1], p[2], p[3]);
 		if (mysql_query(&mysql_handle, tmpsql)) {
-			printf("DB server Error - %s\n", mysql_error(&mysql_handle));
-		}
-
-		sql_res = mysql_store_result(&mysql_handle) ;
-		sql_row = mysql_fetch_row(sql_res);	//row fetching
-
-		if (atoi(sql_row[0]) >0) {
-			// ip ban ok.
-			printf ("packet from banned ip : %d.%d.%d.%d" RETCODE, p[0], p[1], p[2], p[3]);
-			sprintf(tmpsql,"INSERT DELAYED INTO `%s`(`time`,`ip`,`user`,`rcode`,`log`) VALUES (NOW(), '%d.%d.%d.%d', 'unknown','-3', 'ip banned')", loginlog_db, p[0], p[1], p[2], p[3]);
-
-			// query
-			if(mysql_query(&mysql_handle, tmpsql)) {
-				printf("DB server Error - %s\n", mysql_error(&mysql_handle));
-			}
-			printf ("close session connection...\n");
-
-			// close connection
+			ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+			ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
+			// close connection because we can't verify their connectivity.
 			session[fd]->eof = 1;
+		} else { //Avoid entering as it causes a crash.
+			sql_res = mysql_store_result(&mysql_handle) ;
+			sql_row = mysql_fetch_row(sql_res);	//row fetching
 
-		} else {
-			printf ("packet from ip (ban check ok) : %d.%d.%d.%d" RETCODE, p[0], p[1], p[2], p[3]);
+			if (atoi(sql_row[0]) >0) {
+				// ip ban ok.
+				ShowWarning("packet from banned ip : %d.%d.%d.%d\n" RETCODE, p[0], p[1], p[2], p[3]);
+				if (log_login)
+				{
+					sprintf(tmpsql,"INSERT DELAYED INTO `%s`(`time`,`ip`,`user`,`rcode`,`log`) VALUES (NOW(), '%d.%d.%d.%d', 'unknown','-3', 'ip banned')", loginlog_db, p[0], p[1], p[2], p[3]);
+
+					// query
+					if(mysql_query(&mysql_handle, tmpsql)) {
+						ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+						ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
+					}
+				}
+				ShowInfo ("close session connection...\n");
+
+				// close connection
+				session[fd]->eof = 1;
+
+			} else {
+				ShowInfo ("packet from ip (ban check ok) : %d.%d.%d.%d" RETCODE, p[0], p[1], p[2], p[3]);
+			}
+			mysql_free_result(sql_res);
 		}
-		mysql_free_result(sql_res);
 	}
-
 	if (session[fd]->eof) {
 		for(i = 0; i < MAX_SERVERS; i++)
 			if (server_fd[i] == fd)
 				server_fd[i] = -1;
-		close(fd);
-		delete_session(fd);
+		do_close(fd);
 		return 0;
 	}
 
 	while(RFIFOREST(fd)>=2){
-		printf("parse_login : %d %d packet case=%x\n", fd, RFIFOREST(fd), RFIFOW(fd,0));
+		ShowDebug("parse_login : %d %d packet case=%x\n", fd, RFIFOREST(fd), RFIFOW(fd,0));
 
 		switch(RFIFOW(fd,0)){
 		case 0x200:		// New alive packet: structure: 0x200 <account.userid>.24B. used to verify if client is always alive.
@@ -1180,13 +1458,15 @@ int parse_login(int fd) {
 
 		case 0x64:		// request client login
 		case 0x01dd:	// request client login with encrypt
-			if(RFIFOREST(fd)< ((RFIFOW(fd, 0) ==0x64)?55:47))
+			if((int)RFIFOREST(fd)< ((RFIFOW(fd, 0) ==0x64)?55:47))
 				return 0;
 
-			printf("client connection request %s from %d.%d.%d.%d\n", RFIFOP(fd, 6), p[0], p[1], p[2], p[3]);
+			ShowInfo("client connection request %s from %d.%d.%d.%d\n", RFIFOP(fd, 6), p[0], p[1], p[2], p[3]);
 			account.version = RFIFOL(fd, 2);
 			account.userid = (char*)RFIFOP(fd, 6);
+			account.userid[23] = '\0';
 			account.passwd = (char*)RFIFOP(fd, 30);
+			account.passwd[23] = '\0';
 #ifdef PASSWORDENC
 			account.passwdenc= (RFIFOW(fd,0)==0x64)?0:PASSWORDENC;
 #else
@@ -1197,25 +1477,27 @@ int parse_login(int fd) {
 
 		jstrescapecpy(t_uid,(char*)RFIFOP(fd, 6));
 		if(result==-1){
-		    int gm_level = isGM(account.account_id);
+		// as we have queried account level earlier in mmo_auth anyway, no need to do this again [zzo]
+//		    int gm_level = isGM(account.account_id); // removed by [zzo]
 
-        	    if (min_level_to_connect > gm_level) {
+        	    if (min_level_to_connect > account.level) {
 					WFIFOW(fd,0) = 0x81;
-					WFIFOL(fd,2) = 1; // 01 = Server closed
+					WFIFOB(fd,2) = 1; // 01 = Server closed
 					WFIFOSET(fd,3);
 		    } else {
 		    
-                    if (p[0] != 127) {
+                    if (p[0] != 127 && log_login) {
                          sprintf(tmpsql,"INSERT DELAYED INTO `%s`(`time`,`ip`,`user`,`rcode`,`log`) VALUES (NOW(), '%d.%d.%d.%d', '%s','100', 'login ok')", loginlog_db, p[0], p[1], p[2], p[3], t_uid);
                          //query
                          if(mysql_query(&mysql_handle, tmpsql)) {
-                              printf("DB server Error - %s\n", mysql_error(&mysql_handle));
+										ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+										ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
                          }
                     }
-                    if (gm_level)
-						printf("Connection of the GM (level:%d) account '%s' accepted.\n", gm_level, account.userid);
+                    if (account.level)
+						ShowStatus("Connection of the GM (level:%d) account '%s' accepted.\n", account.level, account.userid);
 					else
-						printf("Connection of the account '%s' accepted.\n", account.userid);
+						ShowStatus("Connection of the account '%s' accepted.\n", account.userid);
                     server_num=0;
 				for(i = 0; i < MAX_SERVERS; i++) {
 					if (server_fd[i] >= 0) {
@@ -1254,77 +1536,130 @@ int parse_login(int fd) {
                         auth_fifo_pos++;
                     } else {
                         WFIFOW(fd,0) = 0x81;
-                        WFIFOL(fd,2) = 1; // 01 = Server closed
+                        WFIFOB(fd,2) = 1; // 01 = Server closed
                         WFIFOSET(fd,3);
                     }
             }
       } else {
 		char tmp_sql[512];
 		char error[64];
-		sprintf(tmp_sql,"INSERT DELAYED INTO `%s`(`time`,`ip`,`user`,`rcode`,`log`) VALUES (NOW(), '%d.%d.%d.%d', '%s', '%d','login failed : %%s')", loginlog_db, p[0], p[1], p[2], p[3], t_uid, result);
-		switch((result + 1)) {
-		case -2:  //-3 = Account Banned
-			sprintf(tmpsql,tmp_sql,"Account banned.");
-			sprintf(error,"Account banned.");
-		break;
-		case -1:  //-2 = Dynamic Ban
-			sprintf(tmpsql,tmp_sql,"dynamic ban (ip and account).");
-			sprintf(error,"dynamic ban (ip and account).");
-		break;
-		case 1:   // 0 = Unregistered ID
-			sprintf(tmpsql,tmp_sql,"Unregisterd ID.");
-			sprintf(error,"Unregisterd ID.");
-		break;
-		case 2:   // 1 = Incorrect Password
-			sprintf(tmpsql,tmp_sql,"Incorrect Password.");
-			sprintf(error,"Incorrect Password.");
-		break;
-		case 3:   // 2 = This ID is expired
-			sprintf(tmpsql,tmp_sql,"Account Expired.");
-			sprintf(error,"Account Expired.");
-		break;
-		case 4:   // 3 = Rejected from Server
-			sprintf(tmpsql,tmp_sql,"Rejected from server.");
-			sprintf(error,"Rejected from server.");
-		break;
-		case 5:   // 4 = You have been blocked by the GM Team
-			sprintf(tmpsql,tmp_sql,"Blocked by GM.");
-			sprintf(error,"Blocked by GM.");
-		break;
-		case 6:   // 5 = Your Game's EXE file is not the latest version
-			sprintf(tmpsql,tmp_sql,"Not latest game EXE.");
-			sprintf(error,"Not latest game EXE.");
-		break;
-		case 7:   // 6 = Your are Prohibited to log in until %s
-			sprintf(tmpsql,tmp_sql,"Banned.");
-			sprintf(error,"Banned.");
-		break;
-		case 8:   // 7 = Server is jammed due to over populated
-			sprintf(tmpsql,tmp_sql,"Server Over-population.");
-			sprintf(error,"Server Over-population.");
-		break;
-		case 9:   // 8 = No MSG (actually, all states after 9 except 99 are No MSG, use only this)
-			sprintf(tmpsql,tmp_sql," ");
-			sprintf(error," ");
-		break;
-		case 100: // 99 = This ID has been totally erased
-			sprintf(tmpsql,tmp_sql,"Account gone.");
-			sprintf(error,"Account gone.");
-		break;
-		default:
-			sprintf(tmpsql,tmp_sql,"Uknown Error.");
-			sprintf(error,"Uknown Error.");
-		break;
-			}
-			//query
-			if(mysql_query(&mysql_handle, tmpsql)) {
-					printf("DB server Error - %s\n", mysql_error(&mysql_handle));
-			}
-			if ((result == 1) && (dynamic_pass_failure_ban != 0)){	// failed password
+		if (log_login)
+		{
+			sprintf(tmp_sql,"INSERT DELAYED INTO `%s`(`time`,`ip`,`user`,`rcode`,`log`) VALUES (NOW(), '%d.%d.%d.%d', '%s', '%d','login failed : %%s')", loginlog_db, p[0], p[1], p[2], p[3], t_uid, result);
+			switch((result + 1)) {
+			case -2:	//-3 = Account Banned
+				sprintf(tmpsql,tmp_sql,"Account banned.");
+				sprintf(error,"Account banned.");
+			break;
+			case -1:	//-2 = Dynamic Ban
+				sprintf(tmpsql,tmp_sql,"dynamic ban (ip and account).");
+				sprintf(error,"dynamic ban (ip and account).");
+			break;
+			case 1:	// 0 = Unregistered ID
+				sprintf(tmpsql,tmp_sql,"Unregisterd ID.");
+				sprintf(error,"Unregisterd ID.");
+			break;
+			case 2:	// 1 = Incorrect Password
+				sprintf(tmpsql,tmp_sql,"Incorrect Password.");
+				sprintf(error,"Incorrect Password.");
+			break;
+			case 3:	// 2 = This ID is expired
+				sprintf(tmpsql,tmp_sql,"Account Expired.");
+				sprintf(error,"Account Expired.");
+			break;
+			case 4:	// 3 = Rejected from Server
+				sprintf(tmpsql,tmp_sql,"Rejected from server.");
+				sprintf(error,"Rejected from server.");
+			break;
+			case 5:	// 4 = You have been blocked by the GM Team
+				sprintf(tmpsql,tmp_sql,"Blocked by GM.");
+				sprintf(error,"Blocked by GM.");
+			break;
+			case 6:	// 5 = Your Game's EXE file is not the latest version
+				sprintf(tmpsql,tmp_sql,"Not latest game EXE.");
+				sprintf(error,"Not latest game EXE.");
+			break;
+			case 7:	// 6 = Your are Prohibited to log in until %s
+				sprintf(tmpsql,tmp_sql,"Banned.");
+				sprintf(error,"Banned.");
+			break;
+			case 8:	// 7 = Server is jammed due to over populated
+				sprintf(tmpsql,tmp_sql,"Server Over-population.");
+				sprintf(error,"Server Over-population.");
+			break;
+			case 9:	// 8 = No more accounts may be connected from this company
+				sprintf(tmpsql,tmp_sql,"Account limit from company");
+ 				sprintf(error,"Account limit from company");
+			break;
+			case 10:  // 9 = MSI_REFUSE_BAN_BY_DBA
+				sprintf(tmpsql,tmp_sql,"Ban by DBA");
+				sprintf(error,"Ban by DBA");
+			break;
+			case 11:  // 10 = MSI_REFUSE_EMAIL_NOT_CONFIRMED
+				sprintf(tmpsql,tmp_sql,"Email not confirmed");
+				sprintf(error,"Email not confirmed");
+			break;
+			case 12:  // 11 = MSI_REFUSE_BAN_BY_GM
+				sprintf(tmpsql,tmp_sql,"Ban by GM");
+				sprintf(error,"Ban by GM");
+			break;
+			case 13:  // 12 = MSI_REFUSE_TEMP_BAN_FOR_DBWORK
+				sprintf(tmpsql,tmp_sql,"Working in DB");
+				sprintf(error,"Working in DB");
+			break;
+			case 14:  // 13 = MSI_REFUSE_SELF_LOCK
+				sprintf(tmpsql,tmp_sql,"Self Lock");
+				sprintf(error,"Self Lock");
+			break;
+			case 15:  // 14 = MSI_REFUSE_NOT_PERMITTED_GROUP
+				sprintf(tmpsql,tmp_sql,"Not Permitted Group");
+				sprintf(error,"Not Permitted Group");
+			break;
+			case 16:  // 15 = MSI_REFUSE_NOT_PERMITTED_GROUP
+				sprintf(tmpsql,tmp_sql,"Not Permitted Group");
+				sprintf(error,"Not Permitted Group");
+			break;
+			case 100: // 99 = This ID has been totally erased
+				sprintf(tmpsql,tmp_sql,"Account gone.");
+				sprintf(error,"Account gone.");
+			break;
+			case 101: // 100 = Login information remains at %s
+				sprintf(tmpsql,tmp_sql,"Login info remains.");
+				sprintf(error,"Login info remains.");
+			break;
+			case 102: // 101 = Account has been locked for a hacking investigation. Please contact the GM Team for more information
+				sprintf(tmpsql,tmp_sql,"Hacking investigation.");
+				sprintf(error,"Hacking investigation.");
+			break;
+			case 103: // 102 = This account has been temporarily prohibited from login due to a bug-related investigation
+				sprintf(tmpsql,tmp_sql,"Bug investigation.");
+				sprintf(error,"Bug investigation.");
+			break;
+			case 104: // 103 = This character is being deleted. Login is temporarily unavailable for the time being
+				sprintf(tmpsql,tmp_sql,"Deleting char.");
+				sprintf(error,"Deleting char.");
+			break;
+			case 105: // 104 = This character is being deleted. Login is temporarily unavailable for the time being
+				sprintf(tmpsql,tmp_sql,"Deleting spouse char.");
+				sprintf(error,"Deleting spouse char.");
+			break;
+			default:
+				sprintf(tmpsql,tmp_sql,"Uknown Error.");
+				sprintf(error,"Uknown Error.");
+			break;
+				}
+				//query
+				if(mysql_query(&mysql_handle, tmpsql)) {
+					ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+					ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
+				}
+			} //End login log of error.
+			if ((result == 1) && (dynamic_pass_failure_ban != 0) && log_login){	// failed password
 				sprintf(tmpsql,"SELECT count(*) FROM `%s` WHERE `ip` = '%d.%d.%d.%d' AND `rcode` = '1' AND `time` > NOW() - INTERVAL %d MINUTE",
 				  loginlog_db, p[0], p[1], p[2], p[3], dynamic_pass_failure_ban_time);	//how many times filed account? in one ip.
 				if(mysql_query(&mysql_handle, tmpsql)) {
-						printf("DB server Error - %s\n", mysql_error(&mysql_handle));
+					ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+					ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 				}
 				//check query result
 				sql_res = mysql_store_result(&mysql_handle) ;
@@ -1333,7 +1668,8 @@ int parse_login(int fd) {
 				if (atoi(sql_row[0]) >= dynamic_pass_failure_ban_how_many ) {
 					sprintf(tmpsql,"INSERT INTO `ipbanlist`(`list`,`btime`,`rtime`,`reason`) VALUES ('%d.%d.%d.*', NOW() , NOW() +  INTERVAL %d MINUTE ,'Password error ban: %s')", p[0], p[1], p[2], dynamic_pass_failure_ban_how_long, t_uid);
 					if(mysql_query(&mysql_handle, tmpsql)) {
-							printf("DB server Error - %s\n", mysql_error(&mysql_handle));
+						ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+						ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 					}
 				}
 				mysql_free_result(sql_res);
@@ -1341,7 +1677,8 @@ int parse_login(int fd) {
 			else if (result == -2){	//dynamic banned - add ip to ban list.
 				sprintf(tmpsql,"INSERT INTO `ipbanlist`(`list`,`btime`,`rtime`,`reason`) VALUES ('%d.%d.%d.*', NOW() , NOW() +  INTERVAL 1 MONTH ,'Dynamic banned user id : %s')", p[0], p[1], p[2], t_uid);
 				if(mysql_query(&mysql_handle, tmpsql)) {
-						printf("DB server Error - %s\n", mysql_error(&mysql_handle));
+					ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+					ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 				}
 				result = -3;
 			}else if(result == 6){ //not lastet version ..
@@ -1350,7 +1687,8 @@ int parse_login(int fd) {
 
 			sprintf(tmpsql,"SELECT `ban_until` FROM `%s` WHERE %s `%s` = '%s'",login_db, case_sensitive ? "BINARY" : "",login_db_userid, t_uid);
             if(mysql_query(&mysql_handle, tmpsql)) {
-                printf("DB server Error - %s\n", mysql_error(&mysql_handle));
+					ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+					ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
             }
             sql_res = mysql_store_result(&mysql_handle) ;
             if (sql_res)	{
@@ -1379,11 +1717,11 @@ int parse_login(int fd) {
 
 	case 0x01db:	// request password key
 		if (session[fd]->session_data) {
-			printf("login: abnormal request of MD5 key (already opened session).\n");
+			ShowWarning("login: abnormal request of MD5 key (already opened session).\n");
 			session[fd]->eof = 1;
 			return 0;
 		}
-		printf("Request Password key -%s\n",md5key);
+		ShowDebug("Request Password key -%s\n",md5key);
 		RFIFOSKIP(fd,2);
 		WFIFOW(fd,0)=0x01dc;
 		WFIFOW(fd,2)=4+md5keylen;
@@ -1395,25 +1733,31 @@ int parse_login(int fd) {
 				if(RFIFOREST(fd)<86)
 					return 0;
 				{
-				unsigned char* server_name;
-					sprintf(tmpsql,"INSERT DELAYED INTO `%s`(`time`,`ip`,`user`,`rcode`,`log`) VALUES (NOW(), '%d.%d.%d.%d', '%s@%s','100', 'charserver - %s@%d.%d.%d.%d:%d')", loginlog_db, p[0], p[1], p[2], p[3], RFIFOP(fd, 2),RFIFOP(fd, 60),RFIFOP(fd, 60), RFIFOB(fd, 54), RFIFOB(fd, 55), RFIFOB(fd, 56), RFIFOB(fd, 57), RFIFOW(fd, 58));
+					unsigned char* server_name;
+					if (log_login)
+					{
+						sprintf(tmpsql,"INSERT DELAYED INTO `%s`(`time`,`ip`,`user`,`rcode`,`log`) VALUES (NOW(), '%d.%d.%d.%d', '%s@%s','100', 'charserver - %s@%d.%d.%d.%d:%d')", loginlog_db, p[0], p[1], p[2], p[3], RFIFOP(fd, 2),RFIFOP(fd, 60),RFIFOP(fd, 60), RFIFOB(fd, 54), RFIFOB(fd, 55), RFIFOB(fd, 56), RFIFOB(fd, 57), RFIFOW(fd, 58));
 
-					//query
-					if(mysql_query(&mysql_handle, tmpsql)) {
-							printf("DB server Error - %s\n", mysql_error(&mysql_handle));
+						//query
+						if(mysql_query(&mysql_handle, tmpsql)) {
+							ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+							ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
+						}
 					}
-					printf("server connection request %s @ %d.%d.%d.%d:%d (%d.%d.%d.%d)\n",
+					ShowInfo("server connection request %s @ %d.%d.%d.%d:%d (%d.%d.%d.%d)\n",
 						RFIFOP(fd, 60), RFIFOB(fd, 54), RFIFOB(fd, 55), RFIFOB(fd, 56), RFIFOB(fd, 57), RFIFOW(fd, 58),
 						p[0], p[1], p[2], p[3]);
 				account.userid = (char*)RFIFOP(fd, 2);
+				account.userid[23] = '\0';
 				account.passwd = (char*)RFIFOP(fd, 26);
+				account.passwd[23] = '\0';
 				account.passwdenc = 0;
 				server_name = RFIFOP(fd,60);
 				result = mmo_auth(&account, fd);
 		//printf("Result: %d - Sex: %d - Account ID: %d\n",result,account.sex,(int) account.account_id);
 
 				if(result == -1 && account.sex==2 && account.account_id<MAX_SERVERS && server_fd[account.account_id]==-1){
-				    printf("Connection of the char-server '%s' accepted.\n", server_name);
+				    ShowStatus("Connection of the char-server '%s' accepted.\n", server_name);
 			        memset(&server[account.account_id], 0, sizeof(struct mmo_char_server));
 					server[account.account_id].ip=RFIFOL(fd,54);
 					server[account.account_id].port=RFIFOW(fd,58);
@@ -1425,7 +1769,8 @@ int parse_login(int fd) {
 					sprintf(tmpsql,"DELETE FROM `sstatus` WHERE `index`='%ld'", account.account_id);
 					//query
 					if(mysql_query(&mysql_handle, tmpsql)) {
-							printf("DB server Error - %s\n", mysql_error(&mysql_handle));
+						ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+						ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 					}
 
 					jstrescapecpy(t_uid,server[account.account_id].name);
@@ -1433,13 +1778,16 @@ int parse_login(int fd) {
 						account.account_id, server[account.account_id].name,0);
 					//query
 					if(mysql_query(&mysql_handle, tmpsql)) {
-							printf("DB server Error - %s\n", mysql_error(&mysql_handle));
+						ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+						ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 					}
 					WFIFOW(fd,0)=0x2711;
 					WFIFOB(fd,2)=0;
 					WFIFOSET(fd,3);
 					session[fd]->func_parse=parse_fromchar;
 					realloc_fifo(fd,FIFOSIZE_SERVERLINK,FIFOSIZE_SERVERLINK);
+					// send GM account to char-server
+					send_GM_accounts(fd);
 				} else {
 					WFIFOW(fd, 0) =0x2711;
 					WFIFOB(fd, 2)=3;
@@ -1460,17 +1808,18 @@ int parse_login(int fd) {
 			WFIFOW(fd,8)=ATHENA_MOD_VERSION;
 			WFIFOSET(fd,10);
 			RFIFOSKIP(fd,2);
-			printf ("Athena version check...\n");
+			ShowInfo ("Athena version check...\n");
 			break;
 
 		case 0x7532:
 		default:
-			printf ("End of connection (ip: %s)" RETCODE, ip);
+			ShowStatus ("End of connection (ip: %s)" RETCODE, ip);
 			session[fd]->eof = 1;
 			return 0;
 		}
 	}
 
+	RFIFOSKIP(fd,RFIFOREST(fd));
 	return 0;
 }
 
@@ -1484,12 +1833,12 @@ int parse_console(char *buf) {
     memset(type,0,64);
     memset(command,0,64);
 
-    printf("Console: %s\n",buf);
+    ShowInfo("Console: %s\n",buf);
 
     if ( sscanf(buf, "%[^:]:%[^\n]", type , command ) < 2 )
         sscanf(buf,"%[^\n]",type);
 
-    printf("Type of command: %s || Command: %s \n",type,command);
+    ShowInfo("Type of command: %s || Command: %s \n",type,command);
 
     if(buf) aFree(buf);
     if(type) aFree(type);
@@ -1497,6 +1846,23 @@ int parse_console(char *buf) {
 
     return 0;
 }
+
+static int online_data_cleanup_sub(DBKey key, void *data, va_list ap)
+{
+	struct online_login_data *character= (struct online_login_data*)data;
+	if (character->char_server == -2) //Unknown server.. set them offline
+		remove_online_user(character->account_id);
+	else if (character->char_server < 0)
+		//Free data from players that have not been online for a while.
+		db_remove(online_db, key);
+	return 0;
+}
+
+static int online_data_cleanup(int tid, unsigned int tick, int id, int data)
+{
+	online_db->foreach(online_db, online_data_cleanup_sub);
+	return 0;
+} 
 
 //-------------------------------------------------
 // Return numerical value of a switch configuration
@@ -1522,10 +1888,10 @@ int login_lan_config_read(const char *lancfgName){
 	fp=fopen(lancfgName, "r");
 
 	if (fp == NULL) {
-		printf("file not found: %s\n", lancfgName);
+		ShowError("file not found: %s\n", lancfgName);
 		return 1;
 	}
-	printf("Start reading of Lan Support configuration file\n");
+	ShowInfo("reading configuration file %s...\n", lancfgName);
 	while(fgets(line, sizeof(line)-1, fp)){
 		if (line[0] == '/' && line[1] == '/')
 			continue;
@@ -1536,7 +1902,7 @@ int login_lan_config_read(const char *lancfgName){
 
 		else if(strcmpi(w1,"lan_char_ip")==0){
 			strcpy(lan_char_ip, w2);
-			printf ("set Lan_Char_IP : %s\n",w2);
+			ShowStatus("set Lan_Char_IP : %s\n",w2);
 			}
 
 		else if(strcmpi(w1,"subnetmask")==0){
@@ -1545,7 +1911,7 @@ int login_lan_config_read(const char *lancfgName){
 			strcpy(subnetmask, w2);
 			sscanf(subnetmask, "%d.%d.%d.%d", &k0, &k1, &k2, &k3);
 			subnetmaski[0] = k0; subnetmaski[1] = k1; subnetmaski[2] = k2; subnetmaski[3] = k3;
-			printf ("set subnetmask : %s\n",w2);
+			ShowStatus("set subnetmask : %s\n",w2);
 			}
 		}
 	fclose(fp);
@@ -1555,13 +1921,13 @@ int login_lan_config_read(const char *lancfgName){
 		unsigned char p[4];
 		sscanf(lan_char_ip, "%d.%d.%d.%d", &a0, &a1, &a2, &a3);
 		p[0] = a0; p[1] = a1; p[2] = a2; p[3] = a3;
-		printf("LAN test of LAN IP of the char-server: ");
+		ShowInfo("LAN test of LAN IP of the char-server:\n");
 		if (lan_ip_check(p) == 0) {
-			printf("\033[1;31m***ERROR: LAN IP of the char-server doesn't belong to the specified Sub-network\033[0m\n");
+			ShowError(CL_RED" LAN IP of the char-server doesn't belong to the specified Sub-network"CL_RESET"\n");
 		}
 	}
 
-	printf("End reading of Lan Support configuration file\n");
+	ShowInfo("Finished reading %s.\n",lancfgName);
 
 	return 0;
 }
@@ -1573,7 +1939,8 @@ int ip_ban_check(int tid, unsigned int tick, int id, int data){
 
 	//query
 	if(mysql_query(&mysql_handle, "DELETE FROM `ipbanlist` WHERE `rtime` <= NOW()")) {
-		printf("DB server Error - %s\n", mysql_error(&mysql_handle));
+		ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+		ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 	}
 
 	return 0;
@@ -1584,19 +1951,17 @@ int ip_ban_check(int tid, unsigned int tick, int id, int data){
 //-----------------------------------------------------
 int login_config_read(const char *cfgName){
 	int i;
+	struct hostent *h = NULL;
 	char line[1024], w1[1024], w2[1024];
 	FILE *fp;
-	struct hostent *h = NULL;
-
-        bind_ip_str[0] = '\0';
 
 	fp=fopen(cfgName,"r");
 
 	if(fp==NULL){
-		printf("Configuration file (%s) not found.\n", cfgName);
+		ShowError("Configuration file (%s) not found.\n", cfgName);
 		return 1;
 	}
-	printf ("start reading configuration...\n");
+	ShowInfo("reading configuration file %s...\n", cfgName);
 	while(fgets(line, sizeof(line)-1, fp)){
 		if(line[0] == '/' && line[1] == '/')
 			continue;
@@ -1604,68 +1969,65 @@ int login_config_read(const char *cfgName){
 		i=sscanf(line,"%[^:]: %[^\r\n]",w1,w2);
 		if(i!=2)
 			continue;
-		else if (strcmpi(w1, "bind_ip") == 0) {
-			//bind_ip_set_ = 1;
+
+		remove_control_chars((unsigned char *) w1);
+		remove_control_chars((unsigned char *) w2);
+		if(strcmpi(w1,"timestamp_format") == 0) {
+			strncpy(timestamp_format, w2, 20);
+		} else if(strcmpi(w1,"console_silent")==0){
+			msg_silent = 0; //To always allow the next line to show up.
+			ShowInfo("Console Silent Setting: %d\n", atoi(w2));
+			msg_silent = atoi(w2);
+		} else if (strcmpi(w1, "bind_ip") == 0) {
+			bind_ip_set_ = 1;
 			h = gethostbyname (w2);
 			if (h != NULL) {
-				printf("Login server binding IP address : %s -> %d.%d.%d.%d\n", w2, (unsigned char)h->h_addr[0], (unsigned char)h->h_addr[1], (unsigned char)h->h_addr[2], (unsigned char)h->h_addr[3]);
+				ShowStatus("Login server binding IP address : %s -> %d.%d.%d.%d\n", w2, (unsigned char)h->h_addr[0], (unsigned char)h->h_addr[1], (unsigned char)h->h_addr[2], (unsigned char)h->h_addr[3]);
 				sprintf(bind_ip_str, "%d.%d.%d.%d", (unsigned char)h->h_addr[0], (unsigned char)h->h_addr[1], (unsigned char)h->h_addr[2], (unsigned char)h->h_addr[3]);
 			} else
 				memcpy(bind_ip_str,w2,16);
 		} else if(strcmpi(w1,"login_port")==0){
 			login_port=atoi(w2);
-			printf ("set login_port : %s\n",w2);
+			ShowStatus("set login_port : %s\n",w2);
 		}
 		else if(strcmpi(w1,"ipban")==0){
 			ipban=atoi(w2);
-			printf ("set ipban : %d\n",ipban);
+			ShowStatus("set ipban : %d\n",ipban);
 		}
 		//account ban -> ip ban
 		else if(strcmpi(w1,"dynamic_account_ban")==0){
 			dynamic_account_ban=atoi(w2);
-			printf ("set dynamic_account_ban : %d\n",dynamic_account_ban);
+			ShowStatus("set dynamic_account_ban : %d\n",dynamic_account_ban);
 		}
 		else if(strcmpi(w1,"dynamic_account_ban_class")==0){
 			dynamic_account_ban_class=atoi(w2);
-			printf ("set dynamic_account_ban_class : %d\n",dynamic_account_ban_class);
+			ShowStatus("set dynamic_account_ban_class : %d\n",dynamic_account_ban_class);
 		}
 		//dynamic password error ban
 		else if(strcmpi(w1,"dynamic_pass_failure_ban")==0){
 			dynamic_pass_failure_ban=atoi(w2);
-			printf ("set dynamic_pass_failure_ban : %d\n",dynamic_pass_failure_ban);
+			ShowStatus("set dynamic_pass_failure_ban : %d\n",dynamic_pass_failure_ban);
 		}
 		else if(strcmpi(w1,"dynamic_pass_failure_ban_time")==0){
 			dynamic_pass_failure_ban_time=atoi(w2);
-			printf ("set dynamic_pass_failure_ban_time : %d\n",dynamic_pass_failure_ban_time);
+			ShowStatus("set dynamic_pass_failure_ban_time : %d\n",dynamic_pass_failure_ban_time);
 		}
 		else if(strcmpi(w1,"dynamic_pass_failure_ban_how_many")==0){
 			dynamic_pass_failure_ban_how_many=atoi(w2);
-			printf ("set dynamic_pass_failure_ban_how_many : %d\n",dynamic_pass_failure_ban_how_many);
+			ShowStatus("set dynamic_pass_failure_ban_how_many : %d\n",dynamic_pass_failure_ban_how_many);
 		}
 		else if(strcmpi(w1,"dynamic_pass_failure_ban_how_long")==0){
 			dynamic_pass_failure_ban_how_long=atoi(w2);
-			printf ("set dynamic_pass_failure_ban_how_long : %d\n",dynamic_pass_failure_ban_how_long);
-		}		
-		else if (strcmpi(w1, "import") == 0) {
-			login_config_read(w2);
-		} else if(strcmpi(w1,"imalive_on")==0) {		//Added by Mugendai for I'm Alive mod
-			imalive_on = atoi(w2);			//Added by Mugendai for I'm Alive mod
-		} else if(strcmpi(w1,"imalive_time")==0) {	//Added by Mugendai for I'm Alive mod
-			imalive_time = atoi(w2);		//Added by Mugendai for I'm Alive mod
-		} else if(strcmpi(w1,"flush_on")==0) {		//Added by Mugendai for GUI
-			flush_on = atoi(w2);			//Added by Mugendai for GUI
-		} else if(strcmpi(w1,"flush_time")==0) {	//Added by Mugendai for GUI
-			flush_time = atoi(w2);			//Added by Mugendai for GUI
+			ShowStatus("set dynamic_pass_failure_ban_how_long : %d\n",dynamic_pass_failure_ban_how_long);
 		} else if(strcmpi(w1, "new_account") == 0){ 	//Added by Sirius for new account _M/_F
 			new_account_flag = atoi(w2);		//Added by Sirius for new account _M/_F		
 		} else if(strcmpi(w1, "check_client_version") == 0){ 		//Added by Sirius for client version check
 			//check_client_version = config_switch(w2); 		//Added by Sirius for client version check
-                           if(strcmpi(w2,"on") == 0 || strcmpi(w2,"yes") == 0 ){
-                           	check_client_version = 1;
-			   }
-			   if(strcmpi(w2,"off") == 0 || strcmpi(w2,"no") == 0 ){
-                           	check_client_version = 0;
-                           }                                                                                          
+			if(strcmpi(w2,"on") == 0 || strcmpi(w2,"yes") == 0 ){
+				check_client_version = 1;
+			} else if(strcmpi(w2,"off") == 0 || strcmpi(w2,"no") == 0 ){
+				check_client_version = 0;
+			}                                                                                          
 		} else if(strcmpi(w1, "client_version_to_connect") == 0){	//Added by Sirius for client version check
 			client_version_to_connect = atoi(w2);			//Added by SIrius for client version check
 		} else if(strcmpi(w1,"use_MD5_passwords")==0){
@@ -1674,7 +2036,7 @@ int login_config_read(const char *cfgName){
 			} else if (!strcmpi(w2,"no")){
 				use_md5_passwds=0;
 			}
-			printf ("Using MD5 Passwords: %s \n",w2);
+			ShowStatus("Using MD5 Passwords: %s \n",w2);
 		}
         else if (strcmpi(w1, "date_format") == 0) { // note: never have more than 19 char for the date!
 				switch (atoi(w2)) {
@@ -1703,17 +2065,36 @@ int login_config_read(const char *cfgName){
 			        console = 1;
         }
     	else if (strcmpi(w1, "case_sensitive") == 0) {
-			    if(strcmpi(w2,"on") == 0 || strcmpi(w2,"yes") == 0 )
-			        case_sensitive = 1;
-			    if(strcmpi(w2,"off") == 0 || strcmpi(w2,"no") == 0 )
-			        case_sensitive = 0;
-        }
-		else if(strcmpi(w1, "register_users_online") == 0) {
-			register_users_online = config_switch(w2);
+			if(strcmpi(w2,"on") == 0 || strcmpi(w2,"yes") == 0 )
+				case_sensitive = 1;
+			if(strcmpi(w2,"off") == 0 || strcmpi(w2,"no") == 0 )
+				case_sensitive = 0;
+			else
+				case_sensitive = atoi(w2);
+		} else if (strcmpi(w1, "allowed_regs") == 0) { //account flood protection system [Kevin]
+			allowed_regs = atoi(w2);
+		} else if (strcmpi(w1, "time_allowed") == 0) {
+			time_allowed = atoi(w2);
+		} else if (strcmpi(w1, "online_check") == 0) {
+			if(strcmpi(w2,"on") == 0 || strcmpi(w2,"yes") == 0 )
+				online_check = 1;
+			else if(strcmpi(w2,"off") == 0 || strcmpi(w2,"no") == 0 )
+				online_check = 0;
+			else
+				online_check = atoi(w2);
+		} else if (strcmpi(w1, "log_login") == 0) {
+			if(strcmpi(w2,"on") == 0 || strcmpi(w2,"yes") == 0 )
+				log_login = 1;
+			else if(strcmpi(w2,"off") == 0 || strcmpi(w2,"no") == 0 )
+				log_login = 0;
+			else
+				log_login = atoi(w2);
+		} else if (strcmpi(w1, "import") == 0) {
+			login_config_read(w2);
 		}
  	}
 	fclose(fp);
-	printf ("End reading configuration...\n");
+	ShowInfo("done reading %s.\n", cfgName);
 	return 0;
 }
 
@@ -1722,10 +2103,10 @@ void sql_config_read(const char *cfgName){ /* Kalaspuff, to get login_db */
 	char line[1024], w1[1024], w2[1024];
 	FILE *fp=fopen(cfgName,"r");
 	if(fp==NULL){
-		printf("file not found: %s\n",cfgName);
+		ShowFatalError("file not found: %s\n",cfgName);
 		exit(1);
 	}
-	printf("reading configure: %s\n", cfgName);
+	ShowInfo("reading configuration file %s...\n", cfgName);
 	while(fgets(line, sizeof(line)-1, fp)){
 		if(line[0] == '/' && line[1] == '/')
 			continue;
@@ -1738,23 +2119,27 @@ void sql_config_read(const char *cfgName){ /* Kalaspuff, to get login_db */
 		//add for DB connection
 		else if(strcmpi(w1,"login_server_ip")==0){
 			strcpy(login_server_ip, w2);
-			printf ("set login_server_ip : %s\n",w2);
+			ShowStatus ("set login_server_ip : %s\n",w2);
 		}
 		else if(strcmpi(w1,"login_server_port")==0){
 			login_server_port=atoi(w2);
-			printf ("set login_server_port : %s\n",w2);
+			ShowStatus ("set login_server_port : %s\n",w2);
 		}
 		else if(strcmpi(w1,"login_server_id")==0){
 			strcpy(login_server_id, w2);
-			printf ("set login_server_id : %s\n",w2);
+			ShowStatus ("set login_server_id : %s\n",w2);
 		}
 		else if(strcmpi(w1,"login_server_pw")==0){
 			strcpy(login_server_pw, w2);
-			printf ("set login_server_pw : %s\n",w2);
+			ShowStatus ("set login_server_pw : %s\n",w2);
 		}
 		else if(strcmpi(w1,"login_server_db")==0){
 			strcpy(login_server_db, w2);
-			printf ("set login_server_db : %s\n",w2);
+			ShowStatus ("set login_server_db : %s\n",w2);
+		}
+		else if(strcmpi(w1,"default_codepage")==0){
+			strcpy(default_codepage, w2);
+			ShowStatus ("set default_codepage : %s\n",w2);
 		}
 		//added for custom column names for custom login table
 		else if(strcmpi(w1,"login_db_account_id")==0){
@@ -1769,9 +2154,14 @@ void sql_config_read(const char *cfgName){ /* Kalaspuff, to get login_db */
 		else if(strcmpi(w1,"login_db_level")==0){
 			strcpy(login_db_level, w2);
 		}
-		//end of custom table config
 		else if (strcmpi(w1, "loginlog_db") == 0) {
 			strcpy(loginlog_db, w2);
+		}
+		else if (strcmpi(w1, "lowest_gm_level") == 0) {
+			lowest_gm_level = atoi(w2);
+		}
+		else if (strcmpi(w1, "reg_db") == 0) {
+			strcpy(reg_db, w2);
 		}
 		//support the import command, just like any other config
 		else if(strcmpi(w1,"import")==0){
@@ -1779,118 +2169,88 @@ void sql_config_read(const char *cfgName){ /* Kalaspuff, to get login_db */
 		}
 	}
 	fclose(fp);
-	printf("reading configure done.....\n");
-}
-
-
-//-----------------------------------------------------
-//I'm Alive Alert
-//Used to output 'I'm Alive' every few seconds
-//Intended to let frontends know if the app froze
-//-----------------------------------------------------
-int imalive_timer(int tid, unsigned int tick, int id, int data){
-	printf("I'm Alive\n");
-	return 0;
-}
-
-//-----------------------------------------------------
-//Flush stdout
-//stdout buffer needs flushed to be seen in GUI
-//-----------------------------------------------------
-int flush_timer(int tid, unsigned int tick, int id, int data){
-	fflush(stdout);
-	return 0;
+	ShowInfo("done reading %s.\n", cfgName);
 }
 
 //--------------------------------------
 // Function called at exit of the server
 //--------------------------------------
-static int online_db_final(void *key,void *data,va_list ap)
-{
-	int *p = (int *) data;
-	if (p) aFree(p);
-	return 0;
-}
 void do_final(void) {
 	//sync account when terminating.
 	//but no need when you using DBMS (mysql)
 	mmo_db_close();
-	numdb_final(online_db, online_db_final);
-	exit_dbn();
-	timer_final();
+	online_db->destroy(online_db, NULL);
+	if (gm_account_db)
+		aFree(gm_account_db);
 }
 
+void set_server_type(void)
+{
+	SERVER_TYPE = ATHENA_SERVER_LOGIN;
+}
 int do_init(int argc,char **argv){
 	//initialize login server
 	int i;
 
-	SERVER_TYPE = SERVER_LOGIN;	
 	//read login configue
 	login_config_read( (argc>1)?argv[1]:LOGIN_CONF_NAME );
 	sql_config_read(SQL_CONF_NAME);
 	login_lan_config_read((argc > 1) ? argv[1] : LAN_CONF_NAME);
 	//Generate Passworded Key.
-	printf ("memset md5key \n");
+	ShowInfo("Initializing md5key...\n");
 	memset(md5key, 0, sizeof(md5key));
-	printf ("memset md5key complete\n");
-	printf ("memset keyleng\n");
 	md5keylen=rand()%4+12;
 	for(i=0;i<md5keylen;i++)
 		md5key[i]=rand()%255+1;
-	printf ("memset keyleng complete\n");
+	ShowInfo("md5key setup complete\n");
 
-	printf ("set FIFO Size\n");
+	
+	ShowInfo("set FIFO Size\n");
 	for(i=0;i<AUTH_FIFO_SIZE;i++)
 		auth_fifo[i].delflag=1;
-	printf ("set FIFO Size complete\n");
+	ShowInfo("set FIFO Size complete\n");
 
-	printf ("set max servers\n");
+	ShowInfo("set max servers\n");
 	for(i=0;i<MAX_SERVERS;i++)
 		server_fd[i]=-1;
-	printf ("set max servers complete\n");
+	ShowInfo("set max servers complete\n");
 	//server port open & binding
 
-        if (bind_ip_str[0] != '\0')
-            bind_ip = inet_addr(bind_ip_str);
-        else
-            bind_ip = INADDR_ANY;
+	// Online user database init
+	online_db = db_alloc(__FILE__,__LINE__,DB_INT,DB_OPT_RELEASE_DATA,sizeof(int));	// reinitialise
+	add_timer_func_list(waiting_disconnect_timer, "waiting_disconnect_timer");
 
 	//login_fd=make_listen_port(login_port);
-	login_fd=make_listen_bind(bind_ip,login_port);
+	if (bind_ip_set_)
+		login_fd = make_listen_bind(inet_addr(bind_ip_str),login_port);
+	else
+		login_fd = make_listen_bind(INADDR_ANY,login_port);
 
 	//Auth start
-	printf ("Running mmo_auth_sqldb_init()\n");
+	ShowInfo("Running mmo_auth_sqldb_init()\n");
 	mmo_auth_sqldb_init();
-	printf ("finished mmo_auth_sqldb_init()\n");
-	set_termfunc(do_final);
+	ShowInfo("finished mmo_auth_sqldb_init()\n");
+	
+	//Read account information.
+	read_gm_account();
 
 	//set default parser as parse_login function
 	set_defaultparse(parse_login);
 
-	//Added for Mugendais I'm Alive mod
-	if(imalive_on)
-		add_timer_interval(gettick()+10, imalive_timer,0,0,imalive_time*1000);
-
-	//Added by Mugendai for GUI support
-	if(flush_on)
-		add_timer_interval(gettick()+10, flush_timer,0,0,flush_time);
-
 	// ban deleter timer - 1 minute term
-	printf("add interval tic (ip_ban_check)....\n");
-	i=add_timer_interval(gettick()+10, ip_ban_check,0,0,60*1000);
+	ShowStatus("add interval tic (ip_ban_check)....\n");
+	add_timer_func_list(ip_ban_check,"ip_ban_check");
+	add_timer_interval(gettick()+10, ip_ban_check,0,0,60*1000);
 
+	add_timer_func_list(online_data_cleanup, "online_data_cleanup");
+	add_timer_interval(gettick() + 600*1000, online_data_cleanup, 0, 0, 600*1000); // every 10 minutes cleanup online account db.
+	
 	if (console) {
 		set_defaultconsoleparse(parse_console);
 		start_console();
 	}
 
-	// Online user database init
-    aFree(online_db);
-	online_db = numdb_init();
-
-	printf("The login-server is \033[1;32mready\033[0m (Server is listening on the port %d).\n\n", login_port);
+	ShowStatus("The login-server is "CL_GREEN"ready"CL_RESET" (Server is listening on the port %d).\n\n", login_port);
 
 	return 0;
 }
-
-

@@ -3,7 +3,7 @@
 //===== By: ==================================================
 //= kobra_k88
 //===== Current Version: =====================================
-//= 1.1a
+//= 1.4
 //===== Compatible With: =====================================
 //= eAthena 7.15 +
 //===== Description: =========================================
@@ -13,8 +13,10 @@
 //= v1.1 Bug fixes
 //= v1.a Now using functions found in "Global_Functions.txt"
 //= for class checks.[kobra_k88]
+//= 1.2 Added Baby Class Support [Lupus]
+//= 1.3 Removed callfunc Is_####_Class in favor of baseClass [Silentdragon]
+//= 1.4 Fixed exploits [Lupus]
 //============================================================
-
 
 
 
@@ -28,7 +30,7 @@ alberta.gat,89,96,5	script	Necko	139,0,4,{
 
 alberta.gat,83,96,5	script	Necko	98,{
 	mes "[Necko]";
-	if (callfunc("Is_Merc_Class")) goto L_Start;
+	if (baseClass == Job_Merchant) goto L_Start;
 
 L_Other:
 	mes "Necko's store is closed right now.  Come back later..... Hehe....";
@@ -45,7 +47,7 @@ L_Start:
 	mes "I'll let you in on something....... My voice is more than just loud..... it's actually quite unique......";
 	next;
 	mes "[Necko]";
-	if(Class==Job_Merchant && JobLevel < 15) goto L_JobLvl;
+	if(BaseJob==Job_Merchant && JobLevel < 15) goto L_JobLvl;
 	mes "You see, I know a skill that lets me shout in a way that actually helps me.... It is the ^3355FFCrazy Uproar^000000 skill!!!";
 	emotion 5;
 	next;
@@ -85,6 +87,9 @@ L_Start:
 
 L_GetSkill:
 	if ((countitem(722)<7) || (countitem(532)<1) || (countitem(921)<50)) goto L_Items;
+	delitem 722,7;
+	delitem 532,1;
+	delitem 921,50;
 	mes "Oh You've gathered the items! Very good, very good.  Now it's time to start your training.....";
 	next;
 	mes "[Necko]";
@@ -94,9 +99,6 @@ L_GetSkill:
 	next;
 	mes "[Necko]";
 	mes "Raaaaaawwwwrrrrrrrrrrr!....... Ha ha!! Execellent.  Your voice is now finely tuned for ^3355FFCrazy Uproar^000000.  Good job.";
-	delitem 722,7;
-	delitem 532,1;
-	delitem 921,50;
 	skill 155,1,0;
 	set CRAZYROAR, 0;
 	emotion 21;
@@ -118,7 +120,7 @@ L_GotSkill:
 //----------------------------------------- Charlron: Change cart ---------------------------------\\
 alberta.gat,119,221,6	script	Charlron	107,{
 	mes "[Charlron]";
-	if (callfunc("Is_Merc_Class")) goto L_Start;
+	if (baseClass == Job_Merchant) goto L_Start;
 L_Other:
 	mes "I am a merchant that deals in many things.  My name is Charlron.  If you ever find anything interesting, come back and try to negotiate a deal with me.";
 	close;
@@ -137,7 +139,7 @@ L_Start:
 	mes "I can change the way your cart looks for you.  Of course some conditions need to be met......";
 	next;
 	mes "[Charlron]";
-	if (Class==Job_Merchant && JobLevel < 30) goto L_JobLvl;
+	if (BaseJob==Job_Merchant && JobLevel < 30) goto L_JobLvl;
 	mes "First you will need to bring me these items:";
 	mes "^3355FF50 Trunks,";
 	mes "20 Animal Skin,";
@@ -154,9 +156,7 @@ L_GetSkill:
 	if ((countitem(1019)<50) || (countitem(998)<10) || (countitem(919)<20)) goto L_Items;
 	mes "Oh good, you have all of the items.  Well here you are..... Hmm?... Oh these are the design sheets for your cart.";
 	mes "Now that you have the proper materials, just follow these guides to make your cart look spectactular.";
-	//delitem 1019,50;
-	//delitem 998,10;
-	//delitem 919,20;
+// Note: It is not supposed to take these items, just check you have collected them
 	skill 154,1,0;
 	set CHANGECART, 0;
 	mes "[Charlron]";
@@ -178,7 +178,7 @@ L_GotSkill:
 
 //-------------------------====-------- Gershuan: Cart Revolution ---------------------------------\\
 alberta.gat,232,106,6	script	Gershaun	57,{
-	if (callfunc("Is_Merc_Class")) goto L_Start;
+	if (baseClass == Job_Merchant) goto L_Start;
 
 L_Other:
 	mes "[Gershaun]";
@@ -237,7 +237,7 @@ L_Start:
 
 		sM_0:
 			mes "[Gershuan]";
-			if (Class==Job_Merchant && JobLevel < 35) goto ssL_LowLvl;
+			if (BaseJob==Job_Merchant && JobLevel < 35) goto ssL_LowLvl;
 			mes "Ok! I will give you the special training for Cart Revolution.  The first thing you will have to do is bring me these items:";
 			mes "^3355FF30 Sticky Mucus,";
 			mes "20 Fly wings,";
@@ -264,6 +264,11 @@ L_Start:
 
 L_GetSkill:
 	if ((countitem(533)<2) || (countitem(998)<15) || (countitem(938)<30) || (countitem(601)<20) || (countitem(962)<5)) goto sM_0;
+	delitem 533,2;
+	delitem 998,15;
+	delitem 938,30;
+	delitem 601,20;
+	delitem 962,5;
 	mes "[Gershaun]";
 	mes "It's Good to see you again.  I'm glad you were able to get all of the items.  Take a minute to prepare, for your training is about to take place....";
 	next;
@@ -284,11 +289,6 @@ L_GetSkill:
 	mes "Give yourself a good pat on the back becuase you have just mastered Cart Revolution!";
 	emotion 21;
 	next;
-	delitem 533,2;
-	delitem 998,15;
-	delitem 938,30;
-	delitem 601,20;
-	delitem 962,5;
 	skill 153,1,0;
 	set CARTREVO, 0;
 	mes "[Gershuan]";

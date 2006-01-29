@@ -1,3 +1,6 @@
+// Copyright (c) Athena Dev Teams - Licensed under GNU GPL
+// For more information, see LICENCE in the main folder
+
 #ifdef PCRE_SUPPORT
 
 #include <stdio.h>
@@ -122,10 +125,19 @@ struct npc_parse {
  */
 
 void finalize_pcrematch_entry(struct pcrematch_entry *e) {
-    free(e->pcre_);
-    free(e->pcre_extra_);
-    aFree(e->pattern_);
-    aFree(e->label_);
+//TODO: For some odd reason this causes a already-free'd error under Windows, but not *nix! [Skotlex]
+#ifndef _WIN32
+	if (e->pcre_) {
+		free(e->pcre_);
+		e->pcre_ = NULL;
+	}
+#endif
+	if (e->pcre_extra_) {
+		free(e->pcre_extra_);
+		e->pcre_ = NULL;
+	}
+	aFree(e->pattern_);
+	aFree(e->label_);
 }
 
 /**
@@ -271,21 +283,23 @@ static void delete_pcreset(struct npc_data *nd,int setid) {
         pcreset->next_->prev_ = pcreset->prev_;
     if (pcreset->prev_ != NULL)
         pcreset->prev_->next_ = pcreset->next_;
-    else if(active == 1)
-        npcParse->active_ = pcreset->next_;
-     else
-        npcParse->inactive_ = pcreset->next_;
+
+	if(active)
+		npcParse->active_ = pcreset->next_;
+	else
+		npcParse->inactive_ = pcreset->next_;
 
     pcreset->prev_ = NULL;
     pcreset->next_ = NULL;
 
     while (pcreset->head_) {
-    	struct pcrematch_entry *n = pcreset->head_->next_;;
-    	finalize_pcrematch_entry(pcreset->head_);
-	pcreset->head_ = n;
+		struct pcrematch_entry *n = pcreset->head_->next_;
+		finalize_pcrematch_entry(pcreset->head_);
+		aFree(pcreset->head_); // Cleanin' the last ones.. [Lance]
+		pcreset->head_ = n;
     }
 
-    aFree(pcreset);
+	aFree(pcreset);
 }
 
 /**
@@ -353,6 +367,9 @@ void npc_chat_finalize(struct npc_data *nd)
 
     while(npcParse->inactive_)
       delete_pcreset(nd, npcParse->inactive_->setid_);
+
+	// Additional cleaning up [Lance]
+	aFree(npcParse);
 }
 
 /**
@@ -387,7 +404,7 @@ int npc_chat_sub(struct block_list *bl, va_list ap)
             int offsets[20];
             char buf[255];
             // perform pattern match
-            int r = pcre_exec(e->pcre_, e->pcre_extra_, (char *) msg, len, 0, 
+            int r = pcre_exec(e->pcre_, e->pcre_extra_, msg, len, 0, 
                 0, offsets, sizeof(offsets) / sizeof(offsets[0]));
             if (r >= 0) {
                 // save out the matched strings
@@ -444,7 +461,7 @@ int npc_chat_sub(struct block_list *bl, va_list ap)
                     }
                 }
                 if (pos == -1) {
-                    printf("Unable to find label: %s", e->label_);
+                    ShowWarning("Unable to find label: %s", e->label_);
                     // unable to find label... do something..
                     return 0;
                 }

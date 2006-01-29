@@ -1,56 +1,39 @@
 //===== eAthena Script ======================================= 
 //= Wizard Job Quest
 //===== By: ================================================== 
-//= ?? (Aegis)
-//= Translated by yoshiki
+//= (Aegis) Translated by yoshiki
 //= converted by kobra_k88
 //= Further bugfixed and tested by Lupus
 //===== Current Version: ===================================== 
-//= 1.3c
+//= 1.8
 //===== Compatible With: ===================================== 
 //= eAthena 1.0
 //===== Description: ========================================= 
 //= Wizard job quest converted from aegis script, plus my own RO screenies.
 //===== Additional Comments: ================================= 
-//= v1.1 Now using the initnpctimer command, donpcevent,
+//= 1.1 Now using the initnpctimer command, donpcevent,
 //= and new waitingroom event commands.  No more addtimer spamming.
 //= No longer have to talk to the npc to take the test.  Just enter the chat room.
-//= v1.2 Changed global variable names to unique ones.
-//= v1.3 Rollback from the wrong Kashy's fix
-//= v1.3a Fixed issue with duplicating monsters thx to Bison.[kobra_k88]
-//= v1.3b changed one Horong to Frilldora (now 3rd room contains 1 agressive mob.)
-//= v1.3c more simplified fire room - removed agressive Desert Wolf. Got it from Freya [Lupus]
+//= 1.2 Changed global variable names to unique ones.
+//= 1.2a Rollback from the wrong Kashy's fix
+//= 1.2b Fixed issue with duplicating monsters thx to Bison.[kobra_k88]
+//= 1.2c changed one Horong to Frilldora (now 3rd room contains 1 agressive mob.)
+//= 1.2d more simplified fire room - removed agressive Desert Wolf [Lupus]
+//= 1.3 Added Baby Class support [Lupus]
+//= 1.5 Fixed possible EXP abuse [Lupus]
+//= 1.6 Added a func which prevent advanced classes passing
+//= 2nd Job Quests again. It also guides adv classes where
+//= to go. [Lupus]
+//= 1.7 Replaced 2 Hodes with 2 Horong's (according to the official guide) [Lupus]
+//= 1.8 Removed callfunc Is_####_Class in favor of baseClass [Silentdragon]
 //============================================================ 
-
 
 
 //<=================== Some dog =========================>
 gef_tower.gat,107,35,5	script	Some Dog	81,{
-	if(Class == Job_Mage) goto L_JobMage;
-	if(callfunc("Is_Magic_Class")) goto L_Magic;
-	if(callfunc("Is_Holy_Class")) goto L_Holy;
-L_Other:
-	mes "[Dog]";
-	mes "Sheesh....... Why would someone who can't even cast a single spell come all the way up here???";
-	next;
-	mes "[Dog]";
-	mes "If you're that bored, do the world a favor and climb to the top of this building from the outside, then do some acrobatics....";
-	emotion 32;
-	next;
-	mes "[Dog]";
-	mes "~WOOF~ Get lost! I don't have time for people like you!!";
-	emotion 27;
-	close;
-L_Holy:
-	mes "[Dog]";
-	mes "Eeek! What's a holy type person doing up here?  I thought you people didn't like magic....";
-	mes "You religious types are always calling it the 'dark arts'......... ooooh scary!!!...... ~grrr!~WOOF!~";
-	close;
-L_Magic:
-	mes "[Dog]";
-	mes "Ah! High level magic users, welcome.  It's always nice to see experienced magic users around here.";
-	mes "Actually it's nice to see them anywhere! ~Woof!~";
-	close;
+	callfunc "F_BlockHigh",26,"High Mage",33,"High Wizard","Dog";
+	if(BaseJob == Job_Mage) goto L_JobMage;
+	callfunc "Wiz1_check";
 
 L_JobMage:
 	mes "[Dog]";
@@ -155,32 +138,13 @@ L_JobMage:
 
 //<=========================================== Registrar and Examiner Catherine Medichi ==============================================>\\
 gef_tower.gat,111,37,4	script	Catherine Medichi	68,{
+	callfunc "F_BlockHigh",26,"High Mage",33,"High Wizard","Catherine Medichi";
+
 	mes "[Catherine Medichi]";
-	if(Class == Job_Wizard) goto L_Wizard;
-	if(Class == Job_Novice) goto L_Novice;
-	if(Class == Job_Mage) goto L_Mage;
-L_Other:
-	mes "Hmm? What brings you all the way up here? If you have nothing to do here, please leave.";
-	mes "This place is for wizards only. =P";
-	next;
-	mes "[Catherine Medichi]";
-	mes "Try not to fall as you go back down....";
-	close;
-L_Novice:
-	mes "Awwww, a little novice!  How cute! This place is for Wizards only though.";
-	emotion 14;
-	next;
-	mes "[Catherine Medichi]";
-	mes "If you're interested in magic, the ^0000FFMagician's Guild^000000 is the place for you.";
-	close;
-L_Wizard:
-	mes "What do you need fellow Wizard? If it's nothing, please leave...";
-	next;
-	mes "[Catherine Medichi]";
-	if(sex==1) mes "... Of course, if your here to ask me out... (*giggles*)....";
-	if(sex==0) mes "If you get yourself a boyfriend, feel free to drop by and show him off. XD";
-	emotion 3;
-	close;
+	if(BaseJob == Job_Mage) goto L_Mage;
+	callfunc "Wiz2_check";
+
+
 
 L_Mage:
 	if(WIZ_Q == 2) goto L_Test2;
@@ -465,8 +429,8 @@ L_Mage:
 		mes "[Catherine Medichi]";
 		mes "Ack, I'm wasting time, I better change you!";
 		next;
+		callfunc "Job_Change",Job_Wizard;
 		callfunc "F_ClearJobVar";		// clears all job variables for the current player
-		JobChange Job_Wizard;
 
 		mes "[Catherine Medichi]";
 		mes "Now you're a wizard! Act responsibly!";
@@ -497,10 +461,10 @@ L_Mage:
 //<================================================ Examiner: Raul Expagarus ==================================================>\\
 gef_tower.gat,102,24,3	script	Raul Expagarus	735,{
 	mes "[Raul Expagarus]";
-	if(Class == Job_Mage) goto L_Mage;
-	if(Class == Job_Wizard) goto L_Wizard;
-	if(callfunc("Is_Holy_Class")) goto L_Holy;
-	if(Class == Job_Novice) goto L_Novice;
+	if(BaseJob == Job_Mage) goto L_Mage;
+	if(BaseJob == Job_Wizard) goto L_Wizard;
+	if(baseClass == Job_Acolyte) goto L_Holy;
+	if(BaseJob == Job_Novice) goto L_Novice;
 L_Other:
 	mes "Ugh, I don't feel good....I feel like I'm trapped in ice........";
 	next;
@@ -1127,7 +1091,7 @@ L_Mage:
 }
 
 
-<====================================================== Test Arena ========================================================>\\
+//<====================================================== Test Arena ========================================================>\\
 // Test Guide  ---------------------------------------------------------------------------------
 job_wiz.gat,50,165,4	script	Wizard Test Guide::WzTG	123,{
 	mes "[Test Guide]";
@@ -1318,8 +1282,8 @@ OnTimer2000:
 	set $@WzMOB, 3;
 	areaannounce "job_wiz.gat", 30, 82, 61, 113, "[Test Guide]: You now must defeat the door gaurds! Hurry!.",8;
 	monster "job_wiz.gat",44,99,"Greatest General",1277,1,"FireRm::OnMyMobDead2";
-	monster "job_wiz.gat",43,99,"Hode",1127,1,"FireRm::OnMyMobDead2";
-	monster "job_wiz.gat",45,99,"Hode",1127,1,"FireRm::OnMyMobDead2";
+	monster "job_wiz.gat",43,99,"Horong",1129,1,"FireRm::OnMyMobDead2";
+	monster "job_wiz.gat",45,99,"Horong",1129,1,"FireRm::OnMyMobDead2";
 	setnpctimer 120000, "TimerWz";
 	startnpctimer "TimerWz";
 	end;
@@ -1437,3 +1401,15 @@ OnTimer30000:
 job_wiz.gat,30,97,1	duplicate(firewrp)	firewarpW	45,1,1
 job_wiz.gat,46,113,1	duplicate(firewrp)	firewarpN	45,1,1
 job_wiz.gat,46,82,1	duplicate(firewrp)	firewarpS	45,1,1
+
+
+//==============================================================================
+// mapflag
+//==============================================================================
+job_wiz.gat	mapflag	nomemo
+job_wiz.gat	mapflag	noteleport
+job_wiz.gat	mapflag	nosave	SavePoint
+job_wiz.gat	mapflag	nopenalty
+job_wiz.gat	mapflag	nobranch
+job_wiz.gat	mapflag	noexp
+job_wiz.gat	mapflag	noloot

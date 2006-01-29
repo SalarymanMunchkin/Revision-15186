@@ -1,4 +1,6 @@
-// $Id: guild.h,v 1.4 2004/09/25 05:32:18 MouseJstr Exp $
+// Copyright (c) Athena Dev Teams - Licensed under GNU GPL
+// For more information, see LICENCE in the main folder
+
 #ifndef _GUILD_H_
 #define _GUILD_H_
 
@@ -10,13 +12,13 @@ struct guild_position;
 struct guild_castle;
 
 int guild_skill_get_inf(int id);
-int guild_skill_get_sp(int id,int lv);
-int guild_skill_get_range(int id);
 int guild_skill_get_max(int id);
 
 int guild_checkskill(struct guild *g,int id);
+int guild_check_skill_require(struct guild *g,int id); // [Komurka]
 int guild_checkcastles(struct guild *g); // [MouseJstr]
 int guild_isallied(struct guild *g, struct guild_castle *gc);
+int guild_idisallied(int guild_id, int guild_id2); //Checks alliance based on guild Ids. [Skotlex]
 
 void do_init_guild(void);
 struct guild *guild_search(int guild_id);
@@ -24,6 +26,7 @@ struct guild *guild_searchname(char *str);
 struct guild_castle *guild_castle_search(int gcid);
 
 struct guild_castle *guild_mapname2gc(char *mapname);
+struct guild_castle *guild_mapindex2gc(short mapname);
 
 struct map_session_data *guild_getavailablesd(struct guild *g);
 int guild_getindex(struct guild *g,int account_id,int char_id);
@@ -47,6 +50,7 @@ int guild_member_leaved(int guild_id,int account_id,int char_id,int flag,
 int guild_explusion(struct map_session_data *sd,int guild_id,
 	int account_id,int char_id,const char *mes);
 int guild_skillup(struct map_session_data *sd,int skill_num,int flag);
+void guild_block_skill(struct map_session_data *sd, int time);
 int guild_reqalliance(struct map_session_data *sd,int account_id);
 int guild_reply_reqalliance(struct map_session_data *sd,int account_id,int flag);
 int guild_alliance(int guild_id1,int guild_id2,int account_id1,int account_id2);
@@ -69,9 +73,12 @@ int guild_change_emblem(struct map_session_data *sd,int len,const char *data);
 int guild_emblem_changed(int len,int guild_id,int emblem_id,const char *data);
 int guild_send_message(struct map_session_data *sd,char *mes,int len);
 int guild_recv_message(int guild_id,int account_id,char *mes,int len);
+int guild_send_dot_remove(struct map_session_data *sd);
 int guild_skillupack(int guild_id,int skill_num,int account_id);
 int guild_break(struct map_session_data *sd,char *name);
 int guild_broken(int guild_id,int flag);
+int guild_gm_change(int guild_id, struct map_session_data *sd);
+int guild_gm_changed(int guild_id, int pos);
 
 int guild_addcastleinfoevent(int castle_id,int index,const char *name);
 int guild_castledataload(int castle_id,int index);

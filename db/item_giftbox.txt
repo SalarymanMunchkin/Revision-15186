@@ -1,7 +1,8 @@
-// プレゼントボックスから得られるアイテムを設定。
-// nameid, item_name(dummy), rate
-// アイテムID、アイテムの名前(ダミー)、確率(*10000)をした物です。500000なら50%で1000000なら100%です。)
-// アイテムIDが0の場合確率をアイテムの選択に失敗した時に得られるデフォルトアイテムのIDとして認識します。(複数である場合最後の物だけ有効です。) 
+// Gift Box Obtainable Items Database
+//
+// Structure of Database:
+// ItemID,DummyName,Rate
+
 0,Rough Oridecon,756
 756,Rough Oridecon,50000
 757,Rough Elunium,20000
@@ -14,8 +15,8 @@
 995,Mystic Frozen,10000
 996,Rough Wind,10000
 997,Great Nature,10000
-975,Scarlet Dyestuffs,10000
-976,Lemon Dyestuffs,10000
+975,Scarlet Dyestuff,10000
+976,Lemon Dyestuff,10000
 978,Cobaltblue Dyestuff,10000
 979,Darkgreen Dyestuff,10000
 980,Orange Dyestuff,10000

@@ -5,7 +5,7 @@
 //= Converted by: kobra_k88.
 //= Further bugfixed and tested by Lupus
 //===== Current Version: ===================================== 
-//= 1.1
+//= 1.6
 //===== Compatible With: ===================================== 
 //= eAthena  1.0
 //===== Description: ========================================= 
@@ -13,133 +13,24 @@
 //===== Additional Comments: ================================= 
 //= Fully working.  Changed the way Priests enter the test room to help Acos.
 //= Must use this with the included Acolyte quest to work properely.
-//= v1.1 Rollback from the wrong Kashy's fix
+//= 1.3 Added Baby Class support, fixed 3 wrong constants bugs [Lupus]
+//= 1.5 Fixed possible EXP abuse [Lupus]
+//= 1.6 Added a func which prevent advanced classes passing
+//= 2nd Job Quests again. It also guides adv classes where
+//= to go. [Lupus]
 ==========================================================
-
-
-
 
 
 //*********************************************************************************************************************************************************************************\\
 //============================================ Father Thomas: Job changer, Test 1 =============================================\\
 //*********************************************************************************************************************************************************************************\\
 prt_church.gat,16,41,4	script	Father Thomas	60,{
-	mes "[Father Thomas]";
-	if (class == Job_Novice) goto L_Novice;
-	if (class == Job_Priest) goto L_Priest;
-	if (class == Job_Acolyte) goto L_Start;
+	callfunc "F_BlockHigh",28,"Acolyte High",32,"High Priest","Father Thomas";
 
-L_Other:
-	mes "May God bless you my child.";
-	next;
 	mes "[Father Thomas]";
-	mes "Please feel free to rest, the church is the safest place in this world.";
-	next;
-	mes "[Father Thomas]";
-	mes "I hope God will bless you.";
+	if (BaseJob == Job_Acolyte) goto L_Start;
+	callfunc "Pri_check";
 	close;
-
-L_Novice:
-	mes "May God bless you, child.  This is the Prontera Church.  What are you here for?";
-	next;
-	menu "I want to become an Acolyte.",M_0a, "I want to become a ^5533FFPriest^000000.",M_0b, "I'm just walking around.",M_0End;
-
-	M_0a:
-		mes "[Father Thomas]";
-		mes "Haha.. so you want to become an Acolyte eh? To apply to become an Acolyte, please go to the room opposite of here.";
-		close;
-	M_0b:
-		mes "[Father Thomas]";
-		mes "Haha...in order to become a priest you must first become an Acolyte.  To become an Acolyte, go to the room opposite of here.";
-		close;
-	M_0End:
-		mes "[Father Thomas]";
-		mes "Please feel free to rest here.  The church is a sanctuary for all those, who seek to escape the outside world.";
-		next;
-		mes "[Father Thomas]";
-		mes "May God be with you in your thoughts and prayers.";
-		close;
-
-L_Priest:
-	mes "God bless you, child.  You are here again because you listened to God's orders.";
-	next;
-	mes "[Father Thomas]";
-	mes "I don't know if God's sons and daughters are going on the path of light or the path of darkness... I can only pray for the best.";
-	next;
-	mes "[Father Thomas]";
-	mes "So why are you here today?";
-	next;
-	menu "I just wanted to see how you were.",M_1a, "I'm here to help the Acolytes.",M_1b, "Life is really hard... I was wondering if you could help.",M_1End;
-
-	M_1a:
-		mes "[Father Thomas]";
-		mes "Oh, well I'm fine thank you.  Please send my regards to all of the other Priests, and Priestess.";
-		next;
-		mes "[Father Thomas]";
-		mes "We, the ones who follow the devine path, are here for one reason.... to obey Gods orders.";
-		mes "If you come across anyone who needs help, please remember to assist them in any way you can...";
-		close;
-		
-	M_1b:
-		mes "[Father Thomas]";
-		mes "Oh...thats a great idea! Since you're a priest, you can't forget that you have to help the Acolytes when they need it.";
-		emotion 5;
-		next;
-		mes "[Father Thomas]";
-		mes "Even so, you must be carefull not to do everyting for them.  It is important that they gain their own experiences through training ";
-		next;
-		mes "[Father Thomas]";
-		mes "In order to go in and help you'll need a ^5533FFROSARY^000000.";
-		mes "There will be 3 trials for the Acolyte to face, but in only 2 of them will your assistance be needed.";
-		next;
-		mes "[Father Thomas]";
-		mes "Are you prepared to help?";
-		next;
-		menu "Yes, i will help them with all my might.",sM_1a, "I will come back later.",sM_1End;
-
-		sM_1a:
-			if (countitem(2608) < 1) goto sL_NoRosary;
-			mes "[Father Thomas]";
-			mes "Very well then.  I will send you to an Acolyte in just a moment.";
-			next;
-			mes "[Father Thomas]";
-			mes "I hope you will also take this opportunity to teach them what it means to be a good Priest.";
-			next;
-			if((getareausers("job_prist.gat", 8, 34, 39,109)) == 1) warp "job_prist.gat", 24, 44;
-			if((getareausers("job_prist.gat", 160, 14, 175, 178)) == 1) warp "job_prist.gat", 98, 40;
-			if((getareausers("job_prist.gat", 90, 34, 105,105)) == 1) warp "job_prist.gat", 168, 17;
-			mes "[Father Thomas]";
-			mes "Hmm........ wait a minute..... let me check my list.... Either no one is taking the test right now, or another Priest is already helping out.";
-			mes "In any case please check with me again later.";
-			close;
-
-			sL_NoRosary:
-				mes "[Father Thomas]";
-				mes "Hmm... it doesn't look like you have a ^5533FFROSARY^000000 with you.";
-				next;
-				mes "[Father Thomas]";
-				mes "If you want to help the Acolytes, you must first get a ^5533FFROSARY^000000.";
-				mes "Please come back when you have one.";
-				close;
-		sM_1End:
-			mes "[Father Thomas]";
-			mes "Oh, alright.  Just remember to bring a ^5533FFFROSARY^000000 when you come back.";
-			close;
-
-	M_1End:
-		mes "[Father Thomas]";
-		mes "Keep up the good work.  I will ask God to ease your pain.";
-		next;
-		mes "[Father Thomas]";
-		mes "God, one of your children is suffering.  Please use your powers, to heal the wounds on this battered body.....";
-		next;
-		mes "[Father Thomas]";
-		mes "Please look after us, so that under any condition we will be able to think clearly and maintain our faith";
-		percentheal 100,100;
-		next;
-		mes "[Father Thomas]";
-		mes "You should be feeling better now.  Please stay on the path to rightousness and may God bless you.";
-		close;
 
 
 L_Start:
@@ -353,18 +244,18 @@ L_Test3:
 
 L_Change:
 	if (SkillPoint > 0) mes "Wait.  You must use up your skill points in order to become a Priest.";
-       	if (SkillPoint > 0) close;
+	if (SkillPoint > 0) close;
 	mes "Congratulations! You have just completed all of the tests.  I can now turn you into a Priest.";
 	emotion 21;
 	next;
 	mes "[Father Thomas]";
 	mes "God, please endow "+strcharinfo(0)+" with the strength and courage to fight evil and help mankind.";
 	next;
-	jobchange Job_Priest;
+	callfunc "Job_Change",Job_Priest;
 	mes "[Father Thomas]";
 	mes "You are now a Priest.  As a Priest, you can now help a lot of people in the name of God.";
 	next;
-	if (JBLVL == 40) getitem 1550, 1;
+	if (JBLVL != 50) getitem 1550, 1;
 	if (JBLVL == 50) getitem 1551, 1;
 	callfunc "F_ClearJobVar";		// clears all job variables for the current player
 	mes "[Father Thomas]";
@@ -651,7 +542,7 @@ job_prist.gat,23,92,1	script	Zombie5_Trig	139,16,0,{
 // End warp for 1st part of test--------------------------------------------------------------------
 job_prist.gat,24,109,1	script	prst1_1	45,3,3,{
 
-	if(class == Priest) end;		//If a Priest friend steps on the warp nothing happens.  Need the aco to step on the warp.
+	if(BaseJob == Job_Priest) end;		//If a Priest friend steps on the warp nothing happens.  Need the aco to step on the warp.
 OnTimer30000:
 	stopnpctimer;
 	areawarp "job_prist.gat",8,34,39,109,"job_prist.gat",168,17;
@@ -701,7 +592,7 @@ OnTimer500:
 job_prist.gat,168,45,4	script	Deviruchi	738,{
 
 OnStart:
-	if(class == Job_Acolyte) goto L_Aco;
+	if(BaseJob == Job_Acolyte) goto L_Aco;
 
 L_Priest:
 	mes "[Deviruchi]";
@@ -744,7 +635,7 @@ L_Aco:
 		mes "[Deviruchi]";
 		mes "If you give up now, i'll give you a nice gift.  This gift is so hard to find.";
 		next;
-		//showimage "미스트레스카드.bmp" 4;
+		cutin "미스트레스카드.bmp",4;
 		mes "[Deviruchi]";
 		mes "Do you think you can find a card like that? Decide now, don't regret when you become a priest...";
 		next;
@@ -753,14 +644,14 @@ L_Aco:
 			mes "[Deviruchi]";
 			mes "Hahaha all the human beings are like this, good choice! Okay, let me give you this card!";
 			next;
-			//showimage "미스트레스카드.bmp" 255
+			cutin "미스트레스카드.bmp",255;
 			mes "[Deviruchi]";
 			mes "Well, too bad i can't give it to you.  Go look for it YOURSELF!";
 			next;
 			warp "mjolnir_05.gat", 200, 200;
 			end;
 		sM_1a:
-			//showimage "미스트레스카드.bmp" 255
+			cutin "미스트레스카드.bmp",255;
 			mes "[Deviruchi]";
 			mes "Wow, your one tough acolyte, if you keep denying you better becareful.";
 			mes "I will be watching, I'll see if you can become a good priest or not.";
@@ -777,7 +668,7 @@ L_Aco:
 job_prist.gat,168,80,4	script	Doppelganger::Doppel	739,{
 
 OnStart:
-	if(class == Job_Acolyte) goto L_Aco;
+	if(BaseJob == Job_Acolyte) goto L_Aco;
 
 L_Priest:
 	mes "[Doppelganger]";
@@ -851,7 +742,7 @@ L_Aco:
 job_prist.gat,168,115,4	script	Dark Lord	737,{
 
 OnStart:
-	if(class == Job_Acolyte) goto L_Aco;
+	if(BaseJob == Job_Acolyte) goto L_Aco;
 
 L_Priest:
 	mes "[Dark Lord]";
@@ -912,7 +803,7 @@ L_Aco:
 job_prist.gat,168,150,4	script	Baphomet	736,{
 
 OnStart:
-	if(class == Job_Acolyte) goto L_Aco;
+	if(BaseJob == Job_Acolyte) goto L_Aco;
 
 L_Priest:
 	mes "[Baphomet]";
@@ -1000,7 +891,7 @@ job_prist.gat,167,145,1	script	Bapho_Trig	139,8,0,{
 // End warp for 2nd part of test ---------------------------------------------------------
 job_prist.gat,168,180,0	script	prst2_1	45,3,3,{
 
-	if(class == Priest) end;		//If a Priest friend steps on the warp nothing happens.  Need the Aco to step on the warp.
+	if(BaseJob == Job_Priest) end;		//If a Priest friend steps on the warp nothing happens.  Need the Aco to step on the warp.
 OnTimer30000:
 	set $@PrstRm, 3;
 	set $PRIEST_Q3, 0;
@@ -1046,7 +937,7 @@ job_prist.gat,97,80,0	script	Mummy3_Trig	139,8,1,{
 // End warp for 3rd part of test ----------------------------------------------
 job_prist.gat,98,105,0	script	prst3_1	45,2,2,{
 
-	if(class == Priest) end;		//If a Priest friend steps on the warp nothing happens.  Need the Aco to step on the warp.
+	if(BaseJob == Job_Priest) end;		//If a Priest friend steps on the warp nothing happens.  Need the Aco to step on the warp.
 	stopnpctimer "TimerPrst";
 	areawarp "job_prist.gat", 90, 34, 105, 105, "prt_church.gat",16, 37;
 	set PRIEST_Q2, 2;
@@ -1135,9 +1026,9 @@ AnnouncePrst:
 //**********************************************************************************************************************************************************************************\\
 prt_church.gat,27,24,4	script	Sister Cecile	79,{
 	mes "[Sister Cecile]";
-	if(Class == Job_Priest) goto L_Prst;
-	if(Class == Job_Acolyte) goto L_Aco;
-	if(Class == Job_Novice) goto L_Nov;
+	if(BaseJob == Job_Priest) goto L_Prst;
+	if(BaseJob == Job_Acolyte) goto L_Aco;
+	if(BaseJob == Job_Novice) goto L_Nov;
 
 L_Other:
 	mes "This is the Prontera Church, what can I help you with?";
@@ -1254,7 +1145,7 @@ L_Test3:
 	menu "Yes",-, "No.",M_2b;
 
 		mes "[Sister Cecile]";
-		mes "No, that doesn't work, if you use God's power to do what you wish, you're just like a theif.";
+		mes "No, that doesn't work, if you use God's power to do what you wish, you're just like a thief.";
 		mes "How can you become a good priest if you think like that?";
 		next;
 		mes "[Sister Cecile]";
@@ -1426,3 +1317,14 @@ L_Done:
 	mes "Congratulations on finishing the tests.  Please see Father Thomas so that he can make you a Priest.";
 	close;
 }
+
+//==============================================================================
+// mapflag
+//==============================================================================
+job_prist.gat	mapflag	nomemo
+job_prist.gat	mapflag	noteleport
+job_prist.gat	mapflag	nosave	SavePoint
+job_prist.gat	mapflag	nopenalty
+job_prist.gat	mapflag	nobranch
+job_prist.gat	mapflag	noexp
+job_prist.gat	mapflag	noloot

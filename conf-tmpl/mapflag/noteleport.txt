@@ -2,7 +2,7 @@
 //= Map flags that disable use of fly wings
 //===== By: ==================================================
 //= eAthena Dev Team
-//= 1.2 [Lupus]
+//= 1.5 [Lupus]
 //===== Notes: ===============================================
 //= For disabling Butterfly wings use noreturn
 //===== Current Version: =====================================
@@ -13,6 +13,7 @@ ayo_in02.gat	mapflag	noteleport
 alb_ship.gat	mapflag	noteleport
 alberta_in.gat	mapflag	noteleport
 aldeba_in.gat	mapflag	noteleport
+ama_dun01.gat	mapflag	noteleport
 ama_in01.gat	mapflag	noteleport
 ama_in02.gat	mapflag	noteleport
 cmd_in01.gat	mapflag	noteleport
@@ -51,6 +52,43 @@ que_sign01.gat	mapflag	noteleport
 ein_in01.gat	mapflag	noteleport
 airport.gat	mapflag	noteleport
 airplane.gat	mapflag	noteleport
+airplane_01.gat	mapflag	noteleport
+// New areas
+lighthalzen.gat	mapflag	noteleport
+yuno.gat	mapflag	noteleport
+yuno_pre.gat	mapflag	noteleport
+y_airport.gat	mapflag	noteleport
+lhz_airport.gat	mapflag	noteleport
+einbroch.gat	mapflag noteleport
+einbech.gat	mapflag noteleport
+lhz_que01.gat	mapflag	noteleport
+lhz_cube.gat	mapflag	noteleport
+lhz_in01.gat	mapflag	noteleport
+lhz_in02.gat	mapflag	noteleport
+lhz_in03.gat	mapflag	noteleport
+juperos_01.gat	mapflag	noteleport
+juperos_02.gat	mapflag	noteleport
+jupe_area1.gat	mapflag	noteleport
+jupe_area2.gat	mapflag	noteleport
+jupe_core.gat	mapflag	noteleport
+jupe_ele.gat	mapflag	noteleport
+jupe_ele_r.gat	mapflag	noteleport
+jupe_gate.gat	mapflag	noteleport
+tha_t07.gat	mapflag	noteleport
+tha_t08.gat	mapflag	noteleport
+tha_t09.gat	mapflag	noteleport
+tha_t10.gat	mapflag	noteleport
+tha_t11.gat	mapflag	noteleport
+tha_t12.gat	mapflag	noteleport
+thana_step.gat	mapflag	noteleport
+thana_boss.gat	mapflag	noteleport
+gefenia01.gat	mapflag	noteleport
+gefenia02.gat	mapflag	noteleport
+gefenia03.gat	mapflag	noteleport
+gefenia04.gat	mapflag	noteleport
+hu_in01.gat	mapflag	noteleport
+auction_01.gat	mapflag	noteleport
+auction_02.gat	mapflag	noteleport
 
 // Job Quests ====================
 sword_1-1.gat	mapflag	noteleport
@@ -58,10 +96,9 @@ sword_2-1.gat	mapflag	noteleport
 sword_3-1.gat	mapflag	noteleport
 job_thief1.gat	mapflag	noteleport
 // 2-1 -----------------------
-job_hunte.gat	mapflag	noteleport
-job_knight.gat	mapflag	noteleport
 job_prist.gat	mapflag	noteleport
 job_wiz.gat	mapflag	noteleport
+job_hunte.gat	mapflag	noteleport
 in_hunter.gat	mapflag	noteleport
 in_moc_16.gat	mapflag	noteleport
 // 2-2 --------------------
@@ -73,6 +110,9 @@ monk_test.gat	mapflag	noteleport
 monk_in.gat	mapflag	noteleport
 in_rogue.gat	mapflag	noteleport
 job_sage.gat	mapflag	noteleport
+
+job_star.gat	mapflag	noteleport
+job_soul.gat	mapflag	noteleport
 
 // Special Quests Places =========
 que_god01.gat	mapflag	noteleport
@@ -99,6 +139,10 @@ prtg_cas02.gat	mapflag	noteleport
 prtg_cas03.gat	mapflag	noteleport
 prtg_cas04.gat	mapflag	noteleport
 prtg_cas05.gat	mapflag	noteleport
+nguild_alde.gat	mapflag	noteleport
+nguild_gef.gat	mapflag	noteleport
+nguild_pay.gat	mapflag	noteleport
+nguild_prt.gat	mapflag	noteleport
 
 // GvG Arenas ===================
 guild_vs1.gat	mapflag	noteleport

@@ -1,191 +1,423 @@
+// Copyright (c) Athena Dev Teams - Licensed under GNU GPL
+// For more information, see LICENCE in the main folder
+
 #ifndef _STATUS_H_
 #define _STATUS_H_
 
-enum {	// struct map_session_data の status_changeの番?テ?ブル
-// SC_SENDMAX未?はクライアントへの通知あり。
-// 2-2次職の値はなんかめちゃくちゃっぽいので暫定。たぶん?更されます。
-	SC_SENDMAX			= 128,	// note: max is now 182, but we'll need to do alot of moving around
-	SC_PROVOKE			= 0,
-	SC_ENDURE			= 1,
-	SC_TWOHANDQUICKEN	= 2,
-	SC_CONCENTRATE		= 3,
-	SC_HIDING			= 4,
-	SC_CLOAKING			= 5,
-	SC_ENCPOISON		= 6,
-	SC_POISONREACT		= 7,
-	SC_QUAGMIRE			= 8,
-	SC_ANGELUS			= 9,
-	SC_BLESSING			= 10,
-	SC_SIGNUMCRUCIS		= 11,
-	SC_INCREASEAGI		= 12,
-	SC_DECREASEAGI		= 13,
-	SC_SLOWPOISON		= 14,
-	SC_IMPOSITIO		= 15,
-	SC_SUFFRAGIUM		= 16,
-	SC_ASPERSIO			= 17,
-	SC_BENEDICTIO		= 18,
-	SC_KYRIE			= 19,
-	SC_MAGNIFICAT		= 20,
-	SC_GLORIA			= 21,
-	SC_AETERNA			= 22,
-	SC_ADRENALINE		= 23,
-	SC_WEAPONPERFECTION	= 24,
-	SC_OVERTHRUST		= 25,
-	SC_MAXIMIZEPOWER	= 26,
-	SC_RIDING			= 27,
-	SC_FALCON			= 28,
-	SC_TRICKDEAD		= 29,
-	SC_LOUD				= 30,
-	SC_ENERGYCOAT		= 31,
-	SC_BROKNARMOR		= 32,
-	SC_BROKNWEAPON		= 33,
-	SC_HALLUCINATION	= 34,
-	SC_WEIGHT50			= 35,
-	SC_WEIGHT90			= 36,
-	SC_SPEEDPOTION0		= 37,
-	SC_SPEEDPOTION1		= 38,
-	SC_SPEEDPOTION2		= 39,
-	SC_SPEEDPOTION3		= 40,
-	SC_SPEEDUP0			= 41, // for skill speedup
-	SC_SPEEDUP1			= 42, // for skill speedup
-//-- 43-50
-	SC_STRIPWEAPON		= 50,
-	SC_STRIPSHIELD		= 51,
-	SC_STRIPARMOR		= 52,
-	SC_STRIPHELM		= 53,
-	SC_CP_WEAPON		= 54,
-	SC_CP_SHIELD		= 55,
-	SC_CP_ARMOR			= 56,
-	SC_CP_HELM			= 57,
-	SC_AUTOGUARD		= 58,
-	SC_REFLECTSHIELD	= 59,
-	SC_DEVOTION			= 60,
-	SC_PROVIDENCE		= 61,
-	SC_DEFENDER			= 62,
-	SC_AUTOSPELL		= 65,
-	SC_SPEARSQUICKEN	= 68,
-//-- 69-85
-	SC_EXPLOSIONSPIRITS	= 86,
-	SC_STEELBODY		= 87,
-	SC_COMBO			= 89,
-	SC_FLAMELAUNCHER	= 90,
-	SC_FROSTWEAPON		= 91,
-	SC_LIGHTNINGLOADER	= 92,
-	SC_SEISMICWEAPON	= 93,
-//-- 94-102
-	SC_AURABLADE		= 103, /* オ?ラブレ?ド */
-	SC_PARRYING			= 104, /* パリイング */
-	SC_CONCENTRATION	= 105, /* コンセントレ?ション */
-	SC_TENSIONRELAX		= 106, /* テンションリラックス */
-	SC_BERSERK			= 107, /* バ?サ?ク */
-//-- 108, 109
-	SC_ASSUMPTIO		= 110, /* アシャンプティオ */
-//-- 111, 112
-	SC_MAGICPOWER		= 113, /* 魔法力?幅 */
-	SC_EDP				= 114, /* エフェクトが判明したら移動 */
-	SC_TRUESIGHT		= 115, /* トゥル?サイト */
-	SC_WINDWALK			= 116, /* ウインドウォ?ク */
-	SC_MELTDOWN			= 117, /* メルトダウン */
-	SC_CARTBOOST		= 118, /* カ?トブ?スト */
-//-- 119
-	SC_REJECTSWORD		= 120, /* リジェクトソ?ド */
-	SC_MARIONETTE		= 121, /* マリオネットコントロ?ル */
-	SC_MARIONETTE2		= 122, // Marionette target
-//-- 123
-	SC_BLEEDING			= 124, /* ヘッドクラッシュ */
-	SC_JOINTBEAT		= 125, /* ジョイントビ?ト */
-//-- 126, 127
+#include "map.h"
 
-	SC_STONE			= 128,
-	SC_FREEZE			= 129,
-// <-- 130 = a baby skill status?
-	SC_STAN				= 130,
-	SC_SLEEP			= 131,
-// <-- 132 = another baby skill?
-	SC_POISON			= 132,
-	SC_CURSE			= 133,
-	SC_SILENCE			= 134,
-	SC_CONFUSION		= 135,
-	SC_BLIND			= 136,
-	SC_DIVINA			= SC_SILENCE,
-//-- 137-139
-	SC_SAFETYWALL		= 140,
-	SC_PNEUMA			= 141,
-//-- 142
-	SC_ANKLE			= 143,
-	SC_DANCING			= 144,
-	SC_KEEPING			= 145,
-	SC_BARRIER			= 146,
-//-- 147,148
-	SC_MAGICROD			= 149,
-	SC_SIGHT			= 150,
-	SC_RUWACH			= 151,
-	SC_AUTOCOUNTER		= 152,
-	SC_VOLCANO			= 153,
-	SC_DELUGE			= 154,
-	SC_VIOLENTGALE		= 155,
-	SC_BLADESTOP_WAIT	= 156,
-	SC_BLADESTOP		= 157,
-	SC_EXTREMITYFIST	= 158,
-//-- 159	
-	SC_LULLABY			=160,
-	SC_RICHMANKIM		=161,
-	SC_ETERNALCHAOS		=162,
-	SC_DRUMBATTLE		=163,
-	SC_NIBELUNGEN		=164,
-	SC_ROKISWEIL		=165,
-	SC_INTOABYSS		=166,
-	SC_SIEGFRIED		=167,
-	SC_DISSONANCE		=168,
-	SC_WHISTLE			=169,
-	SC_ASSNCROS			=170,
-	SC_POEMBRAGI		=171,
-	SC_APPLEIDUN		=172,
-	SC_UGLYDANCE		=173,
-	SC_HUMMING			=174,
-	SC_DONTFORGETME		=175,
-	SC_FORTUNE			=176,
-	SC_SERVICE4U		=177,
-	SC_SPIDERWEB		=180,		/* スパイダ?ウェッブ */
-// <-- 181 = unknown status
-// <-- 182 = unknown status
-	SC_SACRIFICE		=184,		/* サクリファイス */
-	SC_WEDDING			=187,	//結婚用(結婚衣裳になって?くのが?いとか)
-	SC_NOCHAT			=188,	//赤エモ?態
-	SC_SPLASHER			=189,	/* ベナムスプラッシャ? */
-	SC_SELFDESTRUCTION	=190,	/* 自爆 */
-	SC_MEMORIZE			=197,		/* メモライズ */ // changed from 181 to 192
-	SC_DPOISON			=198,		/* 猛毒 */
-
-// Used by English Team
-	SC_SLOWDOWN			=45, // for skill slowdown
-	SC_AUTOBERSERK		=46,
-	SC_SIGHTTRASHER		=73,
-	SC_BASILICA			=102, // temporarily use this before an actual id is found [celest]	
+// Status changes listing. These code are for use by the server. 
+enum {
+	//First we enumerate common status ailments which are often used around.
+	SC_STONE = 0,
+	SC_FREEZE,
+	SC_STAN,
+	SC_SLEEP,
+	SC_POISON,
+	SC_CURSE,
+	SC_SILENCE,
+	SC_CONFUSION,
+	SC_BLIND,
+	SC_BLEEDING,
+	SC_DPOISON, //10
 	
-	SC_ENSEMBLE			=159,
-	SC_FOGWALL			=178,
-	SC_GOSPEL			=179,
-	SC_PRESERVE         =181,
-	SC_BATTLEORDERS		=182,
-	SC_MOONLIT			=183,
-	SC_ATKPOT			=185,	// [Valaris]
-	SC_MATKPOT			=186,	// [Valaris]
-	SC_MINDBREAKER		=191,
-	SC_SPELLBREAKER		=192,
-	SC_LANDPROTECTOR	=193,
-	SC_ADAPTATION		=194,
-	SC_CHASEWALK		=195,
-	SC_REGENERATION		=196,
-	SC_GUILDAURA		=199,
-	SC_BABY				=200,
-
-// Icons
-	_SC_BABY			=200
+	//Next up, we continue on 20, to leave enough room for additional "common" ailments in the future.
+	SC_PROVOKE = 20,
+	SC_ENDURE,
+	SC_TWOHANDQUICKEN,
+	SC_CONCENTRATE,
+	SC_HIDING,
+	SC_CLOAKING,
+	SC_ENCPOISON,
+	SC_POISONREACT,
+	SC_QUAGMIRE,
+	SC_ANGELUS,
+	SC_BLESSING, //30
+	SC_SIGNUMCRUCIS,
+	SC_INCREASEAGI,
+	SC_DECREASEAGI,
+	SC_SLOWPOISON,
+	SC_IMPOSITIO  ,
+	SC_SUFFRAGIUM,
+	SC_ASPERSIO,
+	SC_BENEDICTIO,
+	SC_KYRIE,
+	SC_MAGNIFICAT, //40
+	SC_GLORIA,
+	SC_AETERNA,
+	SC_ADRENALINE,
+	SC_WEAPONPERFECTION,
+	SC_OVERTHRUST,
+	SC_MAXIMIZEPOWER,
+	SC_TRICKDEAD,
+	SC_LOUD,
+	SC_ENERGYCOAT,
+	SC_BROKENARMOR, //50 - NOTE: These two aren't used anywhere, and they have an icon...
+	SC_BROKENWEAPON,
+	SC_HALLUCINATION,
+	SC_WEIGHT50 ,
+	SC_WEIGHT90,
+	SC_ASPDPOTION0,
+	SC_ASPDPOTION1,
+	SC_ASPDPOTION2,
+	SC_ASPDPOTION3,
+	SC_SPEEDUP0,
+	SC_SPEEDUP1, //60
+	SC_ATKPOTION,
+	SC_MATKPOTION,
+	SC_WEDDING,
+	SC_SLOWDOWN,
+	SC_ANKLE,
+	SC_KEEPING,
+	SC_BARRIER,
+	SC_STRIPWEAPON,
+	SC_STRIPSHIELD,
+	SC_STRIPARMOR, //70
+	SC_STRIPHELM,
+	SC_CP_WEAPON,
+	SC_CP_SHIELD,
+	SC_CP_ARMOR,
+	SC_CP_HELM,
+	SC_AUTOGUARD,
+	SC_REFLECTSHIELD,
+	SC_SPLASHER,
+	SC_PROVIDENCE,
+	SC_DEFENDER, //80
+	SC_MAGICROD,
+	SC_SPELLBREAKER,
+	SC_AUTOSPELL,
+	SC_SIGHTTRASHER,
+	SC_AUTOBERSERK,
+	SC_SPEARSQUICKEN,
+	SC_AUTOCOUNTER,
+	SC_SIGHT,
+	SC_SAFETYWALL,
+	SC_RUWACH, //90
+	SC_EXTREMITYFIST,
+	SC_EXPLOSIONSPIRITS,
+	SC_COMBO,
+	SC_BLADESTOP_WAIT,
+	SC_BLADESTOP,
+	SC_FIREWEAPON,
+	SC_WATERWEAPON,
+	SC_WINDWEAPON,
+	SC_EARTHWEAPON,
+	SC_VOLCANO, //100,
+	SC_DELUGE,
+	SC_VIOLENTGALE,
+	SC_WATK_ELEMENT,
+	SC_LANDPROTECTOR,
+	SC_ARMOR_ELEMENT,
+	SC_NOCHAT,
+	SC_BABY,
+	SC_AURABLADE,
+	SC_PARRYING,
+	SC_CONCENTRATION, //110
+	SC_TENSIONRELAX,
+	SC_BERSERK,
+	SC_FURY,
+	SC_GOSPEL,
+	SC_ASSUMPTIO,
+	SC_BASILICA,
+	SC_GUILDAURA,
+	SC_MAGICPOWER,
+	SC_EDP,
+	SC_TRUESIGHT, //120
+	SC_WINDWALK,
+	SC_MELTDOWN,
+	SC_CARTBOOST,
+	SC_CHASEWALK,
+	SC_REJECTSWORD,
+	SC_MARIONETTE,
+	SC_MARIONETTE2,
+	SC_MOONLIT,
+	SC_JOINTBEAT,
+	SC_MINDBREAKER, //130
+	SC_MEMORIZE,
+	SC_FOGWALL,
+	SC_SPIDERWEB,
+	SC_DEVOTION,
+	SC_SACRIFICE,
+	SC_STEELBODY,
+	SC_ORCISH,
+	SC_READYSTORM,
+	SC_READYDOWN,
+	SC_READYTURN, //140
+	SC_READYCOUNTER,
+	SC_DODGE,
+	SC_RUN,
+	SC_SHADOWWEAPON,
+	SC_ADRENALINE2,
+	SC_GHOSTWEAPON,
+	SC_KAIZEL,
+	SC_KAAHI,
+	SC_KAUPE,
+	SC_ONEHAND, //150
+	SC_PRESERVE,
+	SC_BATTLEORDERS,
+	SC_REGENERATION,
+	SC_DOUBLECAST,
+	SC_GRAVITATION,
+	SC_MAXOVERTHRUST,
+	SC_LONGING,
+	SC_HERMODE,
+	SC_SHRINK,
+	SC_SIGHTBLASTER, //160
+	SC_WINKCHARM,
+	SC_CLOSECONFINE,
+	SC_CLOSECONFINE2,
+	SC_DANCING,
+	SC_LULLABY,
+	SC_RICHMANKIM,
+	SC_ETERNALCHAOS,
+	SC_DRUMBATTLE,
+	SC_NIBELUNGEN,
+	SC_ROKISWEIL, //170
+	SC_INTOABYSS,
+	SC_SIEGFRIED,
+	SC_WHISTLE,
+	SC_ASSNCROS,
+	SC_POEMBRAGI,
+	SC_APPLEIDUN,
+	SC_UGLYDANCE,
+	SC_HUMMING,
+	SC_DONTFORGETME,
+	SC_FORTUNE, //180
+	SC_SERVICE4U,
+	SC_STOP,	//Prevents inflicted chars from walking. [Skotlex]
+	SC_SPURT,
+	SC_SPIRIT,
+	SC_COMA, //Not a real SC_, it makes a char's HP/SP hit 1.
+	SC_INTRAVISION,
+	SC_INCALLSTATUS,
+	SC_INCSTR,
+	SC_INCAGI,
+	SC_INCVIT, //190
+	SC_INCINT,
+	SC_INCDEX,
+	SC_INCLUK,
+	SC_INCHIT,
+	SC_INCHITRATE,
+	SC_INCFLEE,
+	SC_INCFLEERATE,
+	SC_INCMHPRATE,
+	SC_INCMSPRATE,
+	SC_INCATKRATE, //200
+	SC_INCMATKRATE,
+	SC_INCDEFRATE,
+	SC_STRFOOD,
+	SC_AGIFOOD,
+	SC_VITFOOD,
+	SC_INTFOOD,
+	SC_DEXFOOD,
+	SC_LUKFOOD,
+	SC_HITFOOD,
+	SC_FLEEFOOD, //210
+	SC_BATKFOOD,
+	SC_WATKFOOD,
+	SC_MATKFOOD,
+	SC_SCRESIST, //Increases resistance to status changes.
+	SC_XMAS, // Xmas Suit [Valaris]
+	SC_WARM, //SG skills [Komurka]
+	SC_SUN_COMFORT,
+	SC_MOON_COMFORT,
+	SC_STAR_COMFORT,
+	SC_FUSION, //220
+	SC_SKILLRATE_UP,
+	SC_SKE,
+	SC_KAITE,
+	SC_SWOO, // [marquis007]
+	SC_SKA, // [marquis007]
+	SC_TKDORI, // [marquis007]
+	//
+	SC_MAX, //Automatically updated max, used in for's and at startup to check we are within bounds. [Skotlex]
 };
 extern int SkillStatusChangeTable[];
 
+//Numerates the Number for the status changes (client-dependent), imported from jA
+enum {
+	SI_BLANK		= -1,
+	SI_PROVOKE		= 0,
+	SI_ENDURE		= 1,
+	SI_TWOHANDQUICKEN	= 2,
+	SI_CONCENTRATE		= 3,
+	SI_HIDING		= 4,
+	SI_CLOAKING		= 5,
+	SI_ENCPOISON		= 6,
+	SI_POISONREACT		= 7,
+	SI_QUAGMIRE		= 8,
+	SI_ANGELUS		= 9,
+	SI_BLESSING		= 10,
+	SI_SIGNUMCRUCIS		= 11,
+	SI_INCREASEAGI		= 12,
+	SI_DECREASEAGI		= 13,
+	SI_SLOWPOISON		= 14,
+	SI_IMPOSITIO  		= 15,
+	SI_SUFFRAGIUM		= 16,
+	SI_ASPERSIO		= 17,
+	SI_BENEDICTIO		= 18,
+	SI_KYRIE		= 19,
+	SI_MAGNIFICAT		= 20,
+	SI_GLORIA		= 21,
+	SI_AETERNA		= 22,
+	SI_ADRENALINE		= 23,
+	SI_WEAPONPERFECTION	= 24,
+	SI_OVERTHRUST		= 25,
+	SI_MAXIMIZEPOWER	= 26,
+	SI_RIDING		= 27,
+	SI_FALCON		= 28,
+	SI_TRICKDEAD		= 29,
+	SI_LOUD			= 30,
+	SI_ENERGYCOAT		= 31,
+	SI_BROKENARMOR		= 32,
+	SI_BROKENWEAPON		= 33,
+	SI_HALLUCINATION	= 34,
+	SI_WEIGHT50 		= 35,
+	SI_WEIGHT90		= 36,
+	SI_ASPDPOTION		= 37,
+	//38: Again Aspd Potion
+	//39: Again Aspd Potion
+	//40: Again Aspd Potion
+	SI_SPEEDPOTION		= 41,
+	//42: Again Speed Up
+	SI_STRIPWEAPON		= 50,
+	SI_STRIPSHIELD		= 51,
+	SI_STRIPARMOR		= 52,
+	SI_STRIPHELM		= 53,
+	SI_CP_WEAPON		= 54,
+	SI_CP_SHIELD		= 55,
+	SI_CP_ARMOR		= 56,
+	SI_CP_HELM		= 57,
+	SI_AUTOGUARD		= 58,
+	SI_REFLECTSHIELD	= 59,
+	SI_PROVIDENCE		= 61,
+	SI_DEFENDER		= 62,
+	SI_AUTOSPELL		= 65,
+	SI_SPEARQUICKEN		= 68,
+	SI_EXPLOSIONSPIRITS	= 86,
+	SI_FURY			= 87,
+	SI_FIREWEAPON		= 90,
+	SI_WATERWEAPON		= 91,
+	SI_WINDWEAPON		= 92,
+	SI_EARTHWEAPON		= 93,
+// 102 = again gloria - from what I saw on screenshots, I wonder if it isn't gospel... [DracoRPG]
+	SI_AURABLADE		= 103,
+	SI_PARRYING		= 104,
+	SI_CONCENTRATION	= 105,
+	SI_TENSIONRELAX		= 106,
+	SI_BERSERK		= 107,
+	SI_ASSUMPTIO		= 110,
+	SI_GUILDAURA		= 112,
+	SI_MAGICPOWER		= 113,
+	SI_EDP			= 114,
+	SI_TRUESIGHT		= 115,
+	SI_WINDWALK		= 116,
+	SI_MELTDOWN		= 117,
+	SI_CARTBOOST		= 118,
+	SI_REJECTSWORD		= 120,
+	SI_MARIONETTE		= 121,
+	SI_MARIONETTE2		= 122,
+	SI_MOONLIT		= 123,
+	SI_BLEEDING		= 124,
+	SI_JOINTBEAT		= 125,
+	SI_DEVOTION		= 130,
+	SI_STEELBODY		= 132,
+	SI_CHASEWALK		= 134,
+	SI_READYSTORM		= 135,
+	SI_READYDOWN		= 137,
+	SI_READYTURN		= 139,
+	SI_READYCOUNTER		= 141,
+	SI_DODGE		= 143,
+	SI_SPURT			= 145,
+	SI_SHADOWWEAPON		= 146,
+	SI_ADRENALINE2		= 147,
+	SI_GHOSTWEAPON		= 148,
+	SI_NIGHT		= 149,
+	SI_SPIRIT		= 149,
+	SI_DEVIL		= 152,
+	SI_KAITE		= 153,
+	SI_KAIZEL		= 156,
+	SI_KAAHI		= 157,
+	SI_KAUPE		= 158,
+// 159 = blue sparks and item-heal sound effect. Looks like item-use effect.
+// 160
+	SI_ONEHAND		= 161,
+	SI_WARM			= 165,	
+//	166 | The three show the exact same display: ultra red character (165, 166, 167)	
+//	167 |	
+	SI_SUN_COMFORT		= 169,
+	SI_MOON_COMFORT		= 170,	
+	SI_STAR_COMFORT		= 171,	
+	SI_PRESERVE		= 181,
+	SI_BATTLEORDERS		= 182,
+// 184 = WTF?? creates the black shape of 4_m_02 NPC, with NPC talk cursor
+	SI_DOUBLECAST		= 186,
+	SI_MAXOVERTHRUST	= 188,
+	SI_TAROT		= 191, // the icon allows no doubt... but what is it really used for ?? [DracoRPG]
+	SI_SHRINK		= 197,
+	SI_SIGHTBLASTER		= 198,
+	SI_WINKCHARM		= 199,
+	SI_CLOSECONFINE		= 200,
+	SI_CLOSECONFINE2	= 201,
+};
+extern int StatusIconChangeTable[];
+
 extern int current_equip_item_index;
+
+//Mode definitions to clear up code reading. [Skotlex]
+#define MD_CANMOVE 0x001
+#define MD_LOOTER 0x002
+//MD_ANGRY mobs are also aggressive.
+#define MD_AGGRESSIVE 0x804
+#define MD_ASSIST 0x008
+#define MD_CASTSENSOR 0x010
+#define MD_BOSS 0x020
+#define MD_PLANT 0x040
+#define MD_CANATTACK 0x080
+#define MD_DETECTOR 0x100
+//#define MD_CHANGETARGET 0x200 //Mode deprecated, figured out through mob_can_changetarget()
+#define MD_CHANGECHASE 0x400
+#define MD_ANGRY 0x800
+#define MD_MASK 0xFFF
+
+//Status change option definitions (options are what makes status changes visible to chars
+//who were not on your field of sight when it happened)
+//opt1: Non stackable status changes.
+enum {
+	OPT1_STONE = 1, //Petrified
+	OPT1_FREEZE,
+	OPT1_STUN,
+	OPT1_SLEEP,
+	//What is 5?
+	OPT1_STONEWAIT=6 //Petrifying
+};
+
+//opt2: Stackable status changes.
+#define OPT2_POISON 0x001
+#define OPT2_CURSE 0x002
+#define OPT2_SILENCE 0x004
+//0x008 Odd howl sound, Signum crucis?
+#define OPT2_SIGNUMCRUCIS 0x008
+#define OPT2_BLIND 0x010
+//0x020 - nothing
+//0x040 - nothing
+#define OPT2_DPOISON 0x080
+//0x100 
+
+//Opt3: Skill state changes, stackable.
+#define OPT3_SPEEDUP 0x001 //Quicken skills
+#define OPT3_POWERUP 0x002 //Power Thrust
+#define OPT3_SHIELD 0x004 //Energy Coat
+#define OPT3_FURY 0x008 //Explosion spirits
+#define OPT3_ELECTRIC 0x010 //Steel Body
+#define OPT3_STOP 0x020 //Blade Stop
+//64 Unknown
+#define OPT3_BERSERK 0x080 //Berserk
+//256 Unknown
+//512 Unknown
+#define OPT3_PINKAURA 0x400 //Marionette
+#define OPT3_AURASHIELD 0x800 //Assumptio
+#define OPT3_HEAT 0x1000 //Warmth Skills
 
 // パラメータ所得系 battle.c より移動
 int status_get_class(struct block_list *bl);
@@ -207,7 +439,7 @@ int status_get_mdef(struct block_list *bl);
 int status_get_flee2(struct block_list *bl);
 int status_get_def2(struct block_list *bl);
 int status_get_mdef2(struct block_list *bl);
-int status_get_baseatk(struct block_list *bl);
+int status_get_batk(struct block_list *bl);
 int status_get_atk(struct block_list *bl);
 int status_get_atk2(struct block_list *bl);
 int status_get_speed(struct block_list *bl);
@@ -215,6 +447,7 @@ int status_get_adelay(struct block_list *bl);
 int status_get_amotion(struct block_list *bl);
 int status_get_dmotion(struct block_list *bl);
 int status_get_element(struct block_list *bl);
+int status_get_attack_sc_element(struct block_list *bl);
 int status_get_attack_element(struct block_list *bl);
 int status_get_attack_element2(struct block_list *bl);  //左手武器属性取得
 #define status_get_elem_type(bl)	(status_get_element(bl)%10)
@@ -242,6 +475,7 @@ int status_get_atk_2(struct block_list *bl);
 int status_get_atk2(struct block_list *bl);
 
 int status_isdead(struct block_list *bl);
+int status_isimmune(struct block_list *bl);
 
 int status_get_sc_def(struct block_list *bl, int type);
 #define status_get_sc_def_mdef(bl)	(status_get_sc_def(bl, SP_MDEF1))
@@ -255,15 +489,39 @@ int status_change_end( struct block_list* bl , int type,int tid );
 int status_change_timer(int tid, unsigned int tick, int id, int data);
 int status_change_timer_sub(struct block_list *bl, va_list ap );
 int status_change_clear(struct block_list *bl,int type);
+int status_change_clear_buffs(struct block_list *bl);
+int status_change_clear_debuffs(struct block_list *bl);
 
-// ステータス計算 pc.c から分離
-// pc_calcstatus
+int status_calc_pet(struct map_session_data* sd, int first); // [Skotlex]
 int status_calc_pc(struct map_session_data* sd,int first);
-int status_calc_speed(struct map_session_data*); // [Celest]
-// int status_calc_skilltree(struct map_session_data *sd);
+int status_calc_str(struct block_list *,int);
+int status_calc_agi(struct block_list *,int);
+int status_calc_vit(struct block_list *,int);
+int status_calc_int(struct block_list *,int);
+int status_calc_dex(struct block_list *,int);
+int status_calc_luk(struct block_list *,int);
+int status_calc_batk(struct block_list *,int);
+int status_calc_watk(struct block_list *,int);
+int status_calc_matk(struct block_list *,int);
+int status_calc_hit(struct block_list *,int);
+int status_calc_critical(struct block_list *,int);
+int status_calc_flee(struct block_list *,int);
+int status_calc_flee2(struct block_list *,int);
+int status_calc_def(struct block_list *,int);
+int status_calc_def2(struct block_list *,int);
+int status_calc_mdef(struct block_list *,int);
+int status_calc_mdef2(struct block_list *,int);
+int status_calc_speed(struct block_list *,int);
+int status_calc_aspd_rate(struct block_list *,int);
+int status_calc_maxhp(struct block_list *,int);
+int status_calc_maxsp(struct block_list *,int);
+int status_quick_recalc_speed(struct map_session_data*, int, int, char); // [Celest] - modified by [Skotlex]
 int status_getrefinebonus(int lv,int type);
-int status_percentrefinery(struct map_session_data *sd,struct item *item);
-extern int percentrefinery[5][10];
+int status_check_skilluse(struct block_list *src, struct block_list *target, int skill_num, int flag); // [Skotlex]
+
+//Use this to refer the max refinery level [Skotlex]
+#define MAX_REFINE 10
+extern int percentrefinery[5][MAX_REFINE+1]; //The last slot always has a 0% success chance [Skotlex]
 
 int status_readdb(void);
 int do_init_status(void);

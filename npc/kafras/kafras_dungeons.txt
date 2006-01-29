@@ -3,7 +3,7 @@
 //===== By: ============================
 //= eAthena Dev Team
 //===== Current Version: =======================
-//= 2.1b
+//= 2.4
 //===== Compatible With: ============================
 //= eAthena 1.0
 //===== Description: ============================================
@@ -19,6 +19,9 @@
 //= v2.1 Fixed bug with Merc job quest kafra.[Lupus]
 //= v2.1b Minor changes to function calls.  Using arguments.
 //= Added ant hell kafras.  This version uses arrays .[kobra_k88]
+//= Fixed Kafras, not giving you Save menu [Lupus]
+//= 2.3 Removed SAVE menu from dungeons Kafras [Lupus]
+//= 2.4 Now Baby Merchant can pass Merch Job Quest w/o probs [Lupus]
 //===============================================================
 
 
@@ -27,7 +30,7 @@
 moc_fild04.gat,230,329,3	script	Kafra	115,{
 
 	cutin "kafra_03",2;
-	callfunc "F_Kafra",0,1,1;
+	callfunc "F_Kafra",0,2,1;
 
 	M_Save:
 		savepoint "moc_fild04.gat",231,339;
@@ -38,7 +41,7 @@ moc_fild04.gat,230,329,3	script	Kafra	115,{
 moc_fild15.gat,264,260,3	script	Kafra	115,{
 
 	cutin "kafra_03",2;
-	callfunc "F_Kafra",0,1,1;
+	callfunc "F_Kafra",0,2,1;
 
 	M_Save:
 		savepoint "moc_fild15.gat",266,271;
@@ -49,8 +52,8 @@ moc_fild15.gat,264,260,3	script	Kafra	115,{
 izlu2dun.gat,106,58,8	script	Kafra	115,{
 
 	cutin "kafra_03",2;
-	if(Class==Job_Novice && job_merchant_q3>0) callfunc "F_MercKafra";  //F_MercKafra found in merchant.txt
-	callfunc "F_Kafra",0,1,1;
+	if(BaseJob==Job_Novice && job_merchant_q3>0) callfunc "F_MercKafra";  //F_MercKafra found in merchant.txt
+	callfunc "F_Kafra",0,2,1;
 
 	M_Save:
 		savepoint "izlu2dun.gat",87,170;
@@ -61,7 +64,7 @@ izlu2dun.gat,106,58,8	script	Kafra	115,{
 //<============================ Culvert Sewers ============================>\\
 prt_fild05.gat,290,224,1	script	Kafra	114,{
 	cutin "kafra_04",2;
-	callfunc "F_Kafra",0,1,1;
+	callfunc "F_Kafra",0,2,1;
 
 	M_Save:
 		savepoint "prt_fild05.gat",274,243;
@@ -84,7 +87,7 @@ mjolnir_02.gat,83,361,4	script	Kafra	114,{
 //<=============================== Morroc Ruins ============================>\\
 moc_ruins.gat,61,156,5	script	Kafra	114,{
 	cutin "kafra_04",2;
-	callfunc "F_Kafra",0,1,1;
+	callfunc "F_Kafra",0,2,1;
 
 	M_Save:
 		savepoint "moc_ruins.gat",41,141;
@@ -94,7 +97,7 @@ moc_ruins.gat,61,156,5	script	Kafra	114,{
 
 //<================================ Orc Dungeon ============================>\\
 gef_fild10.gat,73,340,4	script	Kafra	115,{
-	cutin "kafra_02",2;
+	cutin "kafra_03",2;
 	callfunc "F_KafSetOrcCoal";
 	callfunc "F_Kafra",0,0,1;
 
@@ -121,7 +124,7 @@ function	script	F_KafSetOrcCoal	{
 //<============================== Treasure Island ==========================>\\
 alb2trea.gat,59,69,1	script	Kafra	117,{
 	cutin "kafra_01",2;
-	callfunc "F_Kafra",0,1,1;
+	callfunc "F_Kafra",0,2,1;
 
 	M_Save:
 		savepoint "alb2trea.gat",92,64;

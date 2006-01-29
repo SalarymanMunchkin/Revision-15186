@@ -1,13 +1,18 @@
+// Copyright (c) Athena Dev Teams - Licensed under GNU GPL
+// For more information, see LICENCE in the main folder
+
 #include "../common/core.h"
 #include "../common/socket.h"
 #include "../common/timer.h"
 #include "../common/mmo.h"
 #include "../common/version.h"
 #include "../common/db.h"
+#include "../common/mapindex.h"
 
 #ifndef _CHAR_H_
 #define _CHAR_H_
 
+#define START_CHAR_NUM 150000
 #define MAX_MAP_SERVERS 30
 
 #define LAN_CONF_NAME	"conf/lan_support.conf"
@@ -18,7 +23,7 @@ struct mmo_map_server{
   long ip;
   short port;
   int users;
-  char map[MAX_MAP_PER_SERVER][16];
+  unsigned short map[MAX_MAP_PER_SERVER];
 };
 struct itemtmp {
 	int flag;//checked = 1 else 0
@@ -41,6 +46,8 @@ struct itemtemp{
 	struct itemtmp equip[MAX_GUILD_STORAGE],notequip[MAX_GUILD_STORAGE];
 };
 int memitemdata_to_sql(struct itemtmp mapitem[], int count, int char_id,int tableswitch);
+
+//int memitemdataNEW_to_sql(struct itemtmp mapitem[], int count, int char_id,int tableswitch);
 int mapif_sendall(unsigned char *buf,unsigned int len);
 int mapif_sendallwos(int fd,unsigned char *buf,unsigned int len);
 int mapif_send(int fd,unsigned char *buf,unsigned int len);
@@ -49,9 +56,15 @@ int char_nick2id (char *name);
 int char_married(int pl1,int pl2);
 int char_child(int parent_id, int child_id);
 
+int request_accreg2(int account_id, int char_id);
+int save_accreg2(unsigned char* buf, int len);
+
 extern int autosave_interval;
+extern int save_log;
+extern int charsave_method;
 extern char db_path[];
 extern char char_db[256];
+extern char scdata_db[256];
 extern char cart_db[256];
 extern char inventory_db[256];
 extern char charlog_db[256];

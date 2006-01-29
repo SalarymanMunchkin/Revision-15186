@@ -1,4 +1,5 @@
-// original : core.h 2003/03/14 11:55:25 Rev 1.4
+// Copyright (c) Athena Dev Teams - Licensed under GNU GPL
+// For more information, see LICENCE in the main folder
 
 #ifndef	_TIMER_H_
 #define	_TIMER_H_
@@ -43,6 +44,7 @@ int add_timer_interval(unsigned int,int (*)(int,unsigned int,int,int),int,int,in
 int delete_timer(int,int (*)(int,unsigned int,int,int));
 
 int addtick_timer(int tid,unsigned int tick);
+int settick_timer(int tid,unsigned int tick);
 struct TimerData *get_timer(int tid);
 
 int do_timer(unsigned int tick);
@@ -50,6 +52,9 @@ int do_timer(unsigned int tick);
 int add_timer_func_list(int (*)(int,unsigned int,int,int),char*);
 char* search_timer_func_list(int (*)(int,unsigned int,int,int));
 
-void timer_final();
+unsigned long get_uptime(void);
+
+void timer_init(void);
+void timer_final(void);
 
 #endif	// _TIMER_H_

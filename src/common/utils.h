@@ -1,3 +1,6 @@
+// Copyright (c) Athena Dev Teams - Licensed under GNU GPL
+// For more information, see LICENCE in the main folder
+
 #ifndef COMMON_UTILS_H
 #define COMMON_UTILS_H
 
@@ -10,9 +13,7 @@
 #define UPPER(c)   (((c)>='a'  && (c) <= 'z') ? ((c)+('A'-'a')) : (c) )
 
 /* strcasecmp -> stricmp -> str_cmp */
-
-
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(MINGW)
 	int	strcasecmp(const char *arg1, const char *arg2);
 	int	strncasecmp(const char *arg1, const char *arg2, int n);
 	void str_upper(char *name);
@@ -20,25 +21,8 @@
     char *rindex(char *str, char c);
 #endif
 
-
- void dump(unsigned char *buffer, int num);
-
-
-#define CREATE(result, type, number)  do {\
-   if ((number) * sizeof(type) <= 0)   \
-      printf("SYSERR: Zero bytes or less requested at %s:%d.\n", __FILE__, __LINE__);   \
-   if (!((result) = (type *) aCalloc ((number), sizeof(type))))   \
-      { perror("SYSERR: malloc failure"); abort(); } } while(0)
-
-#define CREATE_A(result, type, number)  do {\
-   if ((number) * sizeof(type) <= 0)   \
-      printf("SYSERR: Zero bytes or less requested at %s:%d.\n", __FILE__, __LINE__);   \
-   if (!((result) = (type *) aCallocA ((number), sizeof(type))))   \
-      { perror("SYSERR: malloc failure"); abort(); } } while(0)
-
-#define RECREATE(result,type,number) do {\
-  if (!((result) = (type *) aRealloc ((result), sizeof(type) * (number))))\
-      { printf("SYSERR: realloc failure"); abort(); } } while(0)
+void dump(unsigned char *buffer, int num);
+int newt_sqrt(int value); //Newton aproximation for getting a fast sqrt.
 
 struct StringBuf {
 	char *buf_;
@@ -46,12 +30,23 @@ struct StringBuf {
 	unsigned int max_;
 };
 
-extern struct StringBuf * StringBuf_Malloc();
-extern void StringBuf_Init(struct StringBuf *);
-extern int StringBuf_Printf(struct StringBuf *,const char *,...);
-extern int StringBuf_Append(struct StringBuf *,const struct StringBuf *);
-extern char * StringBuf_Value(struct StringBuf *);
-extern void StringBuf_Destroy(struct StringBuf *);
-extern void StringBuf_Free(struct StringBuf *);
+struct StringBuf * StringBuf_Malloc(void);
+void StringBuf_Init(struct StringBuf *);
+int StringBuf_Printf(struct StringBuf *,const char *,...);
+int StringBuf_Append(struct StringBuf *,const struct StringBuf *);
+char * StringBuf_Value(struct StringBuf *);
+void StringBuf_Destroy(struct StringBuf *);
+void StringBuf_Free(struct StringBuf *);
+
+void findfile(const char *p, const char *pat, void (func)(const char*));
+
+//////////////////////////////////////////////////////////////////////////
+// byte word dword access [Shinomori]
+//////////////////////////////////////////////////////////////////////////
+
+extern unsigned char GetByte(unsigned long val, size_t num);
+extern unsigned short GetWord(unsigned long val, size_t num);
+extern unsigned short MakeWord(unsigned char byte0, unsigned char byte1);
+extern unsigned long MakeDWord(unsigned short word0, unsigned short word1);
 
 #endif

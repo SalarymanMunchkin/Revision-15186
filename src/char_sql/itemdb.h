@@ -1,9 +1,13 @@
+// Copyright (c) Athena Dev Teams - Licensed under GNU GPL
+// For more information, see LICENCE in the main folder
+
 #ifndef _ITEMDB_H_
 #define _ITEMDB_H_
+#include "mmo.h"
 
 struct item_data {
 	int nameid;
-	char name[24],jname[24];
+	char name[ITEM_NAME_LENGTH],jname[ITEM_NAME_LENGTH];
 	int value_buy,value_sell,value_notdc,value_notoc;
 	int type;
 	int class_;

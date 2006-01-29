@@ -1,4 +1,6 @@
-// $Id: itemdb.c,v 1.1.1.1 2004/09/10 17:44:48 MagicalTux Exp $
+// Copyright (c) Athena Dev Teams - Licensed under GNU GPL
+// For more information, see LICENCE in the main folder
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,10 +10,7 @@
 #include "inter.h"
 #include "char.h"
 #include "utils.h"
-
-#ifdef MEMWATCH
-#include "memwatch.h"
-#endif
+#include "../common/showmsg.h"
 
 #define MAX_RANDITEM	2000
 
@@ -23,22 +22,12 @@ char item_db_db[256]="item_db"; // added to specify item_db sql table [Valaris]
 
 static struct dbt* item_db;
 
-/*==========================================
- * DB‚ÌŒŸõ
- *------------------------------------------
- */
-struct item_data* itemdb_search(int nameid)
-{
+static void* create_item(DBKey key, va_list args) {
 	struct item_data *id;
-
-	id = (struct item_data*)numdb_search(item_db,nameid);
-	if(id) return id;
+	int nameid = key.i;
 
 	CREATE(id, struct item_data, 1);
-
-	numdb_insert(item_db,nameid,id);
-
-
+		id->nameid = nameid;
 	if(nameid>500 && nameid<600)
 		id->type=0;   //heal item
 	else if(nameid>600 && nameid<700)
@@ -59,8 +48,15 @@ struct item_data* itemdb_search(int nameid)
 		id->type=7;   //egg
 	else if(nameid>10000)
 		id->type=8;   //petequip
-
 	return id;
+}
+/*==========================================
+ * DB‚ÌŒŸõ
+ *------------------------------------------
+ */
+struct item_data* itemdb_search(int nameid)
+{
+	return idb_ensure(item_db,nameid,create_item);
 }
 
 /*==========================================
@@ -102,12 +98,13 @@ static int itemdb_readdb(void)
 	char line[1024];
 	int ln=0;
 	int nameid,j;
-	char *str[32],*p,*np;
+	char *str[128],*p,*np;
 	struct item_data *id;
 
-	fp=fopen("db/item_db.txt","r");
+	sprintf(line, "%s/item_db.txt", db_path);
+	fp=fopen(line,"r");
 	if(fp==NULL){
-		printf("can't read db/item_db.txt\n");
+		ShowError("can't read %s\n", str);
 		exit(1);
 	}
 	while(fgets(line,1020,fp)){
@@ -129,13 +126,13 @@ static int itemdb_readdb(void)
 
 		//ID,Name,Jname,Type,Price,Sell,Weight,ATK,DEF,Range,Slot,Job,Gender,Loc,wLV,eLV,View
 		id=itemdb_search(nameid);
-		memcpy(id->name,str[1],24);
-		memcpy(id->jname,str[2],24);
+		memcpy(id->name,str[1],ITEM_NAME_LENGTH-1);
+		memcpy(id->jname,str[2],ITEM_NAME_LENGTH-1);
 		id->type=atoi(str[3]);
 
 	}
 	fclose(fp);
-	printf("read db/item_db.txt done (count=%d)\n",ln);
+	ShowStatus("done reading item_db.txt (count=%d)\n",ln);
 	return 0;
 }
 
@@ -151,7 +148,8 @@ static int itemdb_read_sqldb(void) // sql item_db read, shortened version of map
 
 	// Execute the query; if the query execution fails, output an error
 	if (mysql_query(&mysql_handle, tmp_sql)) {
-		printf("Database server error (executing query for %s): %s\n", item_db_db, mysql_error(&mysql_handle));
+		ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+		ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 	}
 
 	// Store the query result
@@ -170,55 +168,40 @@ static int itemdb_read_sqldb(void) // sql item_db read, shortened version of map
 
 			// ----------
 
-			// Insert a new row into the item database
-/*
-			id = aCalloc(sizeof(struct item_data), 1);
+			// Update/Insert row into the item database
+         id=itemdb_search(nameid);
 
-			if (id == NULL) {
-				printf("out of memory : itemdb_read_sqldb\n");
-				exit(1);
-			}
-
-			memset(id, 0, sizeof(struct item_data));
-			numdb_insert(item_db, nameid, id);
-
-			// ----------
-*/
-            id=itemdb_search(nameid);
-
-			memcpy(id->name, sql_row[1], 24);
-			memcpy(id->jname, sql_row[2], 24);
+			memcpy(id->name, sql_row[1], ITEM_NAME_LENGTH-1);
+			memcpy(id->jname, sql_row[2], ITEM_NAME_LENGTH-1);
 
 			id->type = atoi(sql_row[3]);
 		}
 
 		// If the retrieval failed, output an error
 		if (mysql_errno(&mysql_handle)) {
-			printf("Database server error (retrieving rows from %s): %s\n", item_db_db, mysql_error(&mysql_handle));
+			ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+			ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 		}
 
-		printf("read %s done (count = %lu)\n", item_db_db, (unsigned long) mysql_num_rows(sql_res));
+		ShowInfo("read %s done (count = %lu)\n", item_db_db, (unsigned long) mysql_num_rows(sql_res));
 
 		// Free the query result
 		mysql_free_result(sql_res);
 	} else {
-		printf("MySQL error (storing query result for %s): %s\n", item_db_db, mysql_error(&mysql_handle));
+		ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+		ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 	}
 
 	return 0;
 }
 
-static int itemdb_final(void *key,void *data,va_list ap)
+static int itemdb_final(DBKey key,void *data,va_list ap)
 {
-	struct item_data *id;
-
-	id = (struct item_data*)data;
+	struct item_data *id = (struct item_data*)data;
 	if(id->use_script)
 		aFree(id->use_script);
 	if(id->equip_script)
 		aFree(id->equip_script);
-	aFree(id);
-
 	return 0;
 }
 
@@ -230,18 +213,17 @@ static int itemdb_final(void *key,void *data,va_list ap)
 void do_final_itemdb(void)
 {
 	if(item_db){
-		numdb_final(item_db,itemdb_final);
+		item_db->destroy(item_db,itemdb_final);
 		item_db=NULL;
 	}
 }
 int do_init_itemdb(void)
 {
-	item_db = numdb_init();
+	item_db = db_alloc(__FILE__,__LINE__,DB_INT,DB_OPT_RELEASE_DATA,sizeof(int));
 
 	if (db_use_sqldbs) // it db_use_sqldbs in inter config are yes, will read from item_db for char server display [Valaris]
 		itemdb_read_sqldb();
 	else
-	itemdb_readdb();
+		itemdb_readdb();
 	return 0;
 }
-

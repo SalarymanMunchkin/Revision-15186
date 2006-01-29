@@ -1,7 +1,11 @@
+// Copyright (c) Athena Dev Teams - Licensed under GNU GPL
+// For more information, see LICENCE in the main folder
+
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
 #include "nullpo.h"
+#include "../common/showmsg.h"
 // #include "logs.h" // 布石してみる
 
 static void nullpo_info_core(const char *file, int line, const char *func, 
@@ -70,8 +74,8 @@ static void nullpo_info_core(const char *file, int line, const char *func,
 		func[0] == '\0' ? "unknown":
 		                  func;
 	
-	printf("--- nullpo info --------------------------------------------\n");
-	printf("%s:%d: in func `%s'\n", file, line, func);
+	ShowMessage("--- nullpo info --------------------------------------------\n");
+	ShowMessage("%s:%d: in func `%s'\n", file, line, func);
 	if (fmt != NULL)
 	{
 		if (fmt[0] != '\0')
@@ -80,10 +84,10 @@ static void nullpo_info_core(const char *file, int line, const char *func,
 			
 			// 最後に改行したか確認
 			if (fmt[strlen(fmt)-1] != '\n')
-				printf("\n");
+				ShowMessage("\n");
 		}
 	}
-	printf("--- end nullpo info ----------------------------------------\n");
+	ShowMessage("--- end nullpo info ----------------------------------------\n");
 	
 	// ここらでnullpoログをファイルに書き出せたら
 	// まとめて提出できるなと思っていたり。

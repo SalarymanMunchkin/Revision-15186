@@ -1,6 +1,10 @@
-all:
-	$(CC) -o adduser adduser.c
+all: adduser convert
+
+adduser:
+	$(CC) -o ../../tools/$@ adduser.c
+
+convert:
+	$(CC) -o ../../tools/$@ convert.c
 
 clean:
-	rm -f adduser
-	rm -f *.exe
+	rm -rf ../../tools/adduser ../../tools/convert

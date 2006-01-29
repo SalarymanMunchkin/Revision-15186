@@ -1,17 +1,51 @@
-// $Id: skill.h,v 1.5 2004/12/23 7:43:16 PM Celestia $
+// Copyright (c) Athena Dev Teams - Licensed under GNU GPL
+// For more information, see LICENCE in the main folder
+
 #ifndef _SKILL_H_
 #define _SKILL_H_
 
 #include "map.h"
 
-#define MAX_SKILL_DB			750
+#define MAX_SKILL_DB			1100
 #define MAX_SKILL_PRODUCE_DB	150
-#define MAX_PRODUCE_RESOURCE	7
+#define MAX_PRODUCE_RESOURCE	12
 #define MAX_SKILL_ARROW_DB		150
 #define MAX_SKILL_ABRA_DB		350
 
+//Constants to identify the skill's inf value:
+#define INF_ATTACK_SKILL 1
+//For the time being, all trap-targetted skills ARE ground based:
+#define INF_GROUND_SKILL (2|32)
+// Skills casted on self where target is automatically chosen:
+#define INF_SELF_SKILL 4
+#define INF_SUPPORT_SKILL 16
+#define INF_TARGET_TRAP 32
+
+//Constants to identify a skill's nk value.
+//The NK value applies only to non INF_GROUND_SKILL skills.
+#define NK_NO_DAMAGE 1
+#define NK_SPLASH_DAMAGE 2
+
+//Constants to identify a skill's inf2 value.
+#define INF2_QUEST_SKILL 1
+//NPC skills are those that players can't have in their skill tree.
+#define INF2_NPC_SKILL 2
+#define INF2_WEDDING_SKILL 4
+#define INF2_SPIRIT_SKILL 8
+#define INF2_GUILD_SKILL 16
+#define INF2_SONG_DANCE 32
+#define INF2_ENSEMBLE_SKILL 64
+#define INF2_TRAP 128
+//Refers to ground placed skills that will target the caster as well (like Grandcross)
+#define INF2_TARGET_SELF 256
+#define INF2_NO_TARGET_SELF 512
+#define INF2_PARTY_ONLY 1024
+#define INF2_GUILD_ONLY 2048
+
 // スキルデ?タベ?ス
 struct skill_db {
+	char *name;
+	char *desc;
 	int range[MAX_SKILL_LEVEL],hit,inf,pl,nk,max;
 	int num[MAX_SKILL_LEVEL];
 	int cast[MAX_SKILL_LEVEL],delay[MAX_SKILL_LEVEL];
@@ -24,6 +58,7 @@ struct skill_db {
 	int itemid[10],amount[10];
 	int castnodex[MAX_SKILL_LEVEL];
 	int delaynodex[MAX_SKILL_LEVEL];
+	int delaynowalk[MAX_SKILL_LEVEL];
 	int nocast;
 	int unit_id[2];
 	int unit_layout_type[MAX_SKILL_LEVEL];
@@ -35,11 +70,10 @@ struct skill_db {
 extern struct skill_db skill_db[MAX_SKILL_DB];
 
 struct skill_name_db { 
-        int id;     // skill id
-        char *name; // search strings
-        char *desc; // description that shows up for search's
+	int id;	// skill id
+	char *name;	// search strings
+	char *desc;	// description that shows up for search's
 };
-extern const struct skill_name_db skill_names[];
 
 #define MAX_SKILL_UNIT_LAYOUT	50
 #define MAX_SQUARE_LAYOUT		5	// 11*11のユニット配置が最大
@@ -55,8 +89,12 @@ enum {
 	UF_NOREITERATION	= 0x0002,	// 重複置き禁止 
 	UF_NOFOOTSET		= 0x0004,	// 足元置き禁止
 	UF_NOOVERLAP		= 0x0008,	// ユニット効果が重複しない
+	UF_NOPC		= 0x0010,	//May not target players
+	UF_NOMOB		= 0x0020,	//May not target mobs
+	UF_SKILL		= 0x0080,	//May target skills
 	UF_DANCE			= 0x0100,	// ダンススキル
 	UF_ENSEMBLE			= 0x0200,	// 合奏スキル
+	UF_DUALMODE	= 0x0800,	//Spells should trigger both ontimer and onplace/onout/onleft effects.
 };
 
 // アイテム作成デ?タベ?ス
@@ -99,6 +137,7 @@ int	skill_get_pl( int id );
 int	skill_get_nk( int id );
 int	skill_get_max( int id );
 int skill_get_range( int id , int lv );
+int skill_get_range2(struct block_list *bl, int id, int lv);
 int	skill_get_hp( int id ,int lv );
 int	skill_get_mhp( int id ,int lv );
 int	skill_get_sp( int id ,int lv );
@@ -110,12 +149,14 @@ int	skill_get_time( int id ,int lv );
 int	skill_get_time2( int id ,int lv );
 int	skill_get_castdef( int id );
 int	skill_get_weapontype( int id );
-int skill_get_unit_id(int id,int flag);
+int	skill_get_unit_id(int id,int flag);
 int	skill_get_inf2( int id );
 int	skill_get_maxcount( int id );
 int	skill_get_blewcount( int id ,int lv );
 int	skill_get_unit_flag( int id );
+int	skill_get_unit_target( int id );
 int	skill_tree_get_max( int id, int b_class );	// Celest
+const char*	skill_get_name( int id ); 	// [Skotlex]
 
 // スキルの使用
 int skill_use_id( struct map_session_data *sd, int target_id,
@@ -130,7 +171,8 @@ int skill_addtimerskill(struct block_list *src,unsigned int tick,int target,int 
 
 // 追加?果
 int skill_additional_effect( struct block_list* src, struct block_list *bl,int skillid,int skilllv,int attack_type,unsigned int tick);
-
+int skill_counter_additional_effect( struct block_list* src, struct block_list *bl,int skillid,int skilllv,int attack_type,unsigned int tick);
+int skill_blown( struct block_list *src, struct block_list *target,int count);
 // ユニットスキル
 struct skill_unit_group *skill_unitsetting( struct block_list *src, int skillid,int skilllv,int x,int y,int flag);
 struct skill_unit *skill_initunit(struct skill_unit_group *group,int idx,int x,int y);
@@ -143,8 +185,8 @@ int skill_clear_unitgroup(struct block_list *src);
 int skill_unit_ondamaged(struct skill_unit *src,struct block_list *bl,
 	int damage,unsigned int tick);
 
-int skill_castfix( struct block_list *bl, int time );
-int skill_delayfix( struct block_list *bl, int time );
+int skill_castfix( struct block_list *bl, int skill_id, int skill_lv, int time);
+int skill_delayfix( struct block_list *bl, int skill_id, int skill_lv, int time);
 int skill_check_unit_range(int m,int x,int y,int skillid, int skilllv);
 int skill_check_unit_range2(struct block_list *bl,int m,int x,int y,int skillid, int skilllv);
 // -- moonsoul	(added skill_check_unit_cell)
@@ -152,9 +194,10 @@ int skill_check_unit_cell(int skillid,int m,int x,int y,int unit_id);
 int skill_unit_out_all( struct block_list *bl,unsigned int tick,int range);
 int skill_unit_move(struct block_list *bl,unsigned int tick,int flag);
 int skill_unit_move_unit_group( struct skill_unit_group *group, int m,int dx,int dy);
+void skill_setmapcell(struct block_list *src, int skill_num, int skill_lv, int flag);
 
 struct skill_unit_group *skill_check_dancing( struct block_list *src );
-void skill_stop_dancing(struct block_list *src, int flag);
+void skill_stop_dancing(struct block_list *src);
 
 // Guild skills [celest]
 int skill_guildaura_sub (struct block_list *bl,va_list ap);
@@ -163,14 +206,13 @@ int skill_guildaura_sub (struct block_list *bl,va_list ap);
 int skill_castcancel(struct block_list *bl,int type);
 
 int skill_gangsterparadise(struct map_session_data *sd ,int type);
-int skill_check_moonlit (struct block_list *bl, int dx, int dy);
+int skill_rest(struct map_session_data *sd ,int type);
 void skill_brandishspear_first(struct square *tc,int dir,int x,int y);
 void skill_brandishspear_dir(struct square *tc,int dir,int are);
+void skill_repairweapon(struct map_session_data *sd, int idx);
+void skill_identify(struct map_session_data *sd,int idx);
+void skill_weaponrefine(struct map_session_data *sd,int idx); // [Celest]
 int skill_autospell(struct map_session_data *md,int skillid);
-void skill_devotion(struct map_session_data *md,int target);
-void skill_devotion2(struct block_list *bl,int crusader);
-int skill_devotion3(struct block_list *bl,int target);
-void skill_devotion_end(struct map_session_data *md,struct map_session_data *sd,int target);
 
 #define skill_calc_heal(bl,skill_lv) (( status_get_lv(bl)+status_get_int(bl) )/8 *(4+ skill_lv*8))
 
@@ -182,9 +224,9 @@ int skill_enchant_elemental_end(struct block_list *bl, int type);
 int skillnotok(int skillid, struct map_session_data *sd);
 
 // アイテム作成
-int skill_can_produce_mix( struct map_session_data *sd, int nameid, int trigger );
+int skill_can_produce_mix( struct map_session_data *sd, int nameid, int trigger, int qty);
 int skill_produce_mix( struct map_session_data *sd,
-	int nameid, int slot1, int slot2, int slot3 );
+	int skill_id, int nameid, int slot1, int slot2, int slot3, int qty );
 
 int skill_arrow_create( struct map_session_data *sd,int nameid);
 
@@ -200,7 +242,7 @@ int skill_attack( int attack_type, struct block_list* src, struct block_list *ds
 void skill_reload(void);
 
 enum {
-	ST_NONE,ST_HIDING,ST_CLOAKING,ST_HIDDEN,ST_RIDING,ST_FALCON,ST_CART,ST_SHIELD,ST_SIGHT,ST_EXPLOSIONSPIRITS,
+	ST_NONE,ST_HIDING,ST_CLOAKING,ST_HIDDEN,ST_RIDING,ST_FALCON,ST_CART,ST_SHIELD,ST_SIGHT,ST_EXPLOSIONSPIRITS,ST_CARTBOOST,
 	ST_RECOV_WEIGHT_RATE,ST_MOVE_ENABLE,ST_WATER,
 };
 
@@ -559,31 +601,35 @@ enum {
 	DC_FORTUNEKISS,
 	DC_SERVICEFORYOU,
 
-	WE_MALE = 334,
+	NPC_RANDOMMOVE,
+	NPC_SPEEDUP,
+	NPC_REVENGE,
+
+	WE_MALE,
 	WE_FEMALE,
 	WE_CALLPARTNER,
 
-	NPC_SELFDESTRUCTION2 = 331,
-	ITM_TOMAHAWK = 337,
-	NPC_DARKCROSS = 338,
-	NPC_DARKGRANDCROSS,
-	NPC_DARKSOULSTRIKE,
-	NPC_DARKJUPITEL,
-	// temporary names for mob skills [Celest]
-	NPC_BIND,
+	ITM_TOMAHAWK,
+
+	NPC_DARKCROSS,
+	NPC_GRANDDARKNESS,
+	NPC_DARKSTRIKE,
+	NPC_DARKTHUNDER,
+	NPC_STOP,
 	NPC_BREAKWEAPON,
 	NPC_BREAKARMOR,
 	NPC_BREAKHELM,
 	NPC_BREAKSHIELD,
 	NPC_UNDEADATTACK,
-	
-	NPC_RUNAWAY = 348,
-	NPC_EXPLOSIONSPIRITS,
-	NPC_INCAGI,
+	NPC_CHANGEUNDEAD,
+	NPC_POWERUP,
+	NPC_AGIUP,
+	NPC_SIEGEMODE,
+	NPC_CALLSLAVE,
+	NPC_INVISIBLE,
+	NPC_RUN,
 
-	NPC_RECALL = 354,
-
-	LK_AURABLADE = 355,
+	LK_AURABLADE,
 	LK_PARRYING,
 	LK_CONCENTRATION,
 	LK_TENSIONRELAX,
@@ -640,7 +686,7 @@ enum {
 	WE_CALLPARENT,
 	WE_CALLBABY,
 
-	TK_RUN = 411,
+	TK_RUN,
 	TK_READYSTORM,
 	TK_STORMKICK,
 	TK_READYDOWN,
@@ -702,30 +748,132 @@ enum {
 	SL_SWOO,
 	SL_SKE,
 	SL_SKA,
-	
-	ST_PRESERVE = 475,
+
+	SM_SELFPROVOKE,
+	NPC_EMOTION_ON,	
+	ST_PRESERVE,
 	ST_FULLSTRIP,
 	WS_WEAPONREFINE,
 	CR_SLIMPITCHER,
 	CR_FULLPROTECTION,
-	
+	PA_SHIELDCHAIN,
+	HP_MANARECHARGE,
+	PF_DOUBLECASTING,
+	HW_GANBANTEIN,
+	HW_GRAVITATION,
+	WS_CARTTERMINATION,
+	WS_OVERTHRUSTMAX,
+	CG_LONGINGFREEDOM,
+	CG_HERMODE,
+	CG_TAROTCARD,
+	CR_ACIDDEMONSTRATION,
+	CR_CULTIVATION,
+	//492,missing?
+	TK_MISSION = 493,
+	SL_HIGH,
+	KN_ONEHAND,
+	AM_TWILIGHT1,
+	AM_TWILIGHT2,
+	AM_TWILIGHT3,
+	HT_POWER,
 
-//	moved to common/mmo.h
-/*	GD_APPROVAL=10000,
-	GD_KAFRACONTACT=10001,
-	GD_GUARDIANRESEARCH=10002,
-	GD_GUARDUP=10003,
-	GD_EXTENSION=10004,
-	GD_GLORYGUILD=10005,
-	GD_LEADERSHIP=10006,
-	GD_GLORYWOUNDS=10007,
-	GD_SOULCOLD=10008,
-	GD_HAWKEYES=10009,
-	GD_BATTLEORDER=10010,
-	GD_REGENERATION=10011,
-	GD_RESTORE=10012,
-	GD_EMERGENCYCALL=10013,
-	GD_DEVELOPMENT=10014,*/
+	KN_CHARGEATK = 1001,
+	CR_SHRINK,
+	AS_SONICACCEL,
+	AS_VENOMKNIFE,
+	RG_CLOSECONFINE,
+	WZ_SIGHTBLASTER,
+	SA_CREATECON,
+	SA_ELEMENTWATER,
+	HT_PHANTASMIC,
+	BA_PANGVOICE,
+	DC_WINKCHARM,
+	BS_UNFAIRLYTRICK,
+	BS_GREED,
+	PR_REDEMPTIO,
+	MO_KITRANSLATION,
+	MO_BALKYOUNG,
+	SA_ELEMENTGROUND,
+	SA_ELEMENTFIRE,
+	SA_ELEMENTWIND,
+
+	HLIF_HEAL = 8001,
+	HLIF_AVOID,
+	HLIF_BRAIN,
+	HLIF_CHANGE,
+	HAMI_CASTLE,
+	HAMI_DEFENCE,
+	HAMI_SKIN,
+	HAMI_BLOODLUST,
+	HFLI_MOON,
+	HFLI_FLEET,
+	HFLI_SPEED,
+	HFLI_SBR44,
+	HVAN_CAPRICE,
+	HVAN_CHAOTIC,
+	HVAN_INSTRUCT,
+	HVAN_EXPLOSION,
+};
+
+enum {
+	UNT_SAFETYWALL = 0x7e,
+	UNT_FIREWALL,
+	UNT_WARP_WAITING,
+	UNT_WARP_ACTIVE,
+
+	UNT_SANCTUARY = 0x83,
+	UNT_MAGNUS,
+	UNT_PNEUMA,
+	UNT_MAGIC_SKILLS,
+	UNT_FIREPILLAR_WAITING,
+	UNT_FIREPILLAR_ACTIVE,
+
+	UNT_USED_TRAPS = 0x8c,
+	UNT_ICEWALL,
+	UNT_QUAGMIRE,
+	UNT_BLASTMINE,
+	UNT_SKIDTRAP,
+	UNT_ANKLESNARE,
+	UNT_VENOMDUST,
+	UNT_LANDMINE,
+	UNT_SHOCKWAVE,
+	UNT_SANDMAN,
+	UNT_FLASHER,
+	UNT_FREEZINGTRAP,
+	UNT_CLAYMORETRAP,
+	UNT_TALKIEBOX,
+	UNT_VOLCANO,
+	UNT_DELUGE,
+	UNT_VIOLENTGALE,
+	UNT_LANDPROTECTOR,
+	UNT_LULLABY,
+	UNT_RICHMANKIM,
+	UNT_ETERNALCHAOS,
+	UNT_DRUMBATTLEFIELD,
+	UNT_RINGNIBELUNGEN,
+	UNT_ROKISWEIL,
+	UNT_INTOABYSS,
+	UNT_SIEGFRIED,
+	UNT_DISSONANCE,
+	UNT_WHISTLE,
+	UNT_ASSASSINCROSS,
+	UNT_POEMBRAGI,
+	UNT_APPLEIDUN,
+	UNT_UGLYDANCE,
+	UNT_HUMMING,
+	UNT_DONTFORGETME,
+	UNT_FORTUNEKISS,
+	UNT_SERVICEFORYOU,
+	UNT_GRAFFITI,
+	UNT_DEMONSTRATION,
+	UNT_CALLPARTNER,
+	UNT_GOSPEL,
+	UNT_BASILICA,
+
+	UNT_FOGWALL = 0xb6,
+	UNT_SPIDERWEB,
+	UNT_GRAVITATION,
+	UNT_HERMODE,
 };
 
 #endif

@@ -1,3 +1,6 @@
+// Copyright (c) Athena Dev Teams - Licensed under GNU GPL
+// For more information, see LICENCE in the main folder
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,6 +30,9 @@ char* jstrescape (char* pt) {
 				pt[j++] = '\\';
 				pt[j++] = ptr[i++];
 				break;
+			case '%':
+				pt[j++] = '_'; i++;
+				break;
 			default:
 				pt[j++] = ptr[i++];
 		}
@@ -38,6 +44,8 @@ char* jstrescape (char* pt) {
 
 char* jstrescapecpy (char* pt,char* spt) {
 	//copy from here
+	//WARNING: Target string pt should be able to hold strlen(spt)*2, as each time
+	//a escape character is found, the target's final length increases! [Skotlex]
 	int i =0, j=0;
 
 	while (spt[i] != '\0') {
@@ -49,6 +57,9 @@ char* jstrescapecpy (char* pt,char* spt) {
 			case '\\':
 				pt[j++] = '\\';
 				pt[j++] = spt[i++];
+				break;
+			case '%':
+				pt[j++] = '_'; i++;
 				break;
 			default:
 				pt[j++] = spt[i++];
@@ -70,6 +81,9 @@ int jmemescapecpy (char* pt,char* spt, int size) {
 			case '\\':
 				pt[j++] = '\\';
 				pt[j++] = spt[i++];
+				break;
+			case '%':
+				pt[j++] = '_'; i++;
 				break;
 			default:
 				pt[j++] = spt[i++];
@@ -95,4 +109,25 @@ int remove_control_chars(unsigned char *str) {
 	}
 
 	return change;
+}
+
+//Trims a string, also removes illegal characters such as \t and reduces continous spaces to a single one. by [Foruken]
+char *trim(char *str, const char *delim)
+{
+	char *strp = strtok(str,delim);
+	char buf[1024];
+	char *bufp = buf;
+	memset(buf,0,sizeof buf);
+
+	while(strp) {
+		strcpy(bufp, strp);
+		bufp = bufp + strlen(strp);
+		strp = strtok(NULL, delim);
+		if (strp) {
+			strcpy(bufp," ");
+			bufp++;
+		}
+	}
+	strcpy(str,buf);
+	return str;
 }

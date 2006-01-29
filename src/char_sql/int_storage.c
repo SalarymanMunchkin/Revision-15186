@@ -1,12 +1,15 @@
-//
+// Copyright (c) Athena Dev Teams - Licensed under GNU GPL
+// For more information, see LICENCE in the main folder
+
 // original code from athena
 // SQL conversion by Jioh L. Jung
-//
+
 #include <string.h>
 #include <stdlib.h>
 
 #include "char.h"
 #include "itemdb.h"
+#include "../common/showmsg.h"
 
 #define STORAGE_MEMINC	16
 
@@ -14,11 +17,19 @@
 struct storage *storage_pt=NULL;
 struct guild_storage *guild_storage_pt=NULL;
 
-#define mysql_query(_x, _y)  debug_mysql_query(__FILE__, __LINE__, _x, _y)
+#ifndef SQL_DEBUG
+
+#define mysql_query(_x, _y) mysql_real_query(_x, _y, strlen(_y)) //supports ' in names and runs faster [Kevin]
+
+#else 
+
+#define mysql_query(_x, _y) debug_mysql_query(__FILE__, __LINE__, _x, _y)
+
+#endif
 
 // storage data -> DB conversion
 int storage_tosql(int account_id,struct storage *p){
-	int i;
+	int i,j;
 //	int eqcount=1;
 //	int noteqcount=1;
 	int count=0;
@@ -33,10 +44,8 @@ int storage_tosql(int account_id,struct storage *p){
 			mapitem[count].identify = p->storage_[i].identify;
 			mapitem[count].refine = p->storage_[i].refine;
 			mapitem[count].attribute = p->storage_[i].attribute;
-			mapitem[count].card[0] = p->storage_[i].card[0];
-			mapitem[count].card[1] = p->storage_[i].card[1];
-			mapitem[count].card[2] = p->storage_[i].card[2];
-			mapitem[count].card[3] = p->storage_[i].card[3];
+			for(j=0; j<MAX_SLOTS; j++)
+				mapitem[count].card[j] = p->storage_[i].card[j];
 			count++;
 		}
 	}
@@ -49,16 +58,24 @@ int storage_tosql(int account_id,struct storage *p){
 
 // DB -> storage data conversion
 int storage_fromsql(int account_id, struct storage *p){
-	int i=0;
+	int i=0,j;
+	char * str_p = tmp_sql;
 
 	memset(p,0,sizeof(struct storage)); //clean up memory
 	p->storage_amount = 0;
 	p->account_id = account_id;
 
 	// storage {`account_id`/`id`/`nameid`/`amount`/`equip`/`identify`/`refine`/`attribute`/`card0`/`card1`/`card2`/`card3`}
-	sprintf(tmp_sql,"SELECT `id`,`nameid`,`amount`,`equip`,`identify`,`refine`,`attribute`,`card0`,`card1`,`card2`,`card3` FROM `%s` WHERE `account_id`='%d'",storage_db, account_id);
+	str_p += sprintf(str_p,"SELECT `id`,`nameid`,`amount`,`equip`,`identify`,`refine`,`attribute`");
+	
+	for (j=0; j<MAX_SLOTS; j++)
+		str_p += sprintf(str_p, ", `card%d`", j);
+	
+	str_p += sprintf(str_p," FROM `%s` WHERE `account_id`='%d' ORDER BY `nameid`", storage_db, account_id);
+	
 	if(mysql_query(&mysql_handle, tmp_sql) ) {
-			printf("DB server Error - %s\n", mysql_error(&mysql_handle) );
+		ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+		ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 	}
 	sql_res = mysql_store_result(&mysql_handle) ;
 
@@ -71,22 +88,20 @@ int storage_fromsql(int account_id, struct storage *p){
 			p->storage_[i].identify= atoi(sql_row[4]);
 			p->storage_[i].refine= atoi(sql_row[5]);
 			p->storage_[i].attribute= atoi(sql_row[6]);
-			p->storage_[i].card[0]= atoi(sql_row[7]);
-			p->storage_[i].card[1]= atoi(sql_row[8]);
-			p->storage_[i].card[2]= atoi(sql_row[9]);
-			p->storage_[i].card[3]= atoi(sql_row[10]);
+			for (j=0; j<MAX_SLOTS; j++)
+				p->storage_[i].card[j]= atoi(sql_row[7+j]);
 			p->storage_amount = ++i;
 		}
 		mysql_free_result(sql_res);
 	}
 
-	printf ("storage load complete from DB - id: %d (total: %d)\n", account_id, p->storage_amount);
+	ShowInfo ("storage load complete from DB - id: %d (total: %d)\n", account_id, p->storage_amount);
 	return 1;
 }
 
 // Save guild_storage data to sql
 int guild_storage_tosql(int guild_id, struct guild_storage *p){
-	int i;
+	int i,j;
 //	int eqcount=1;
 //	int noteqcount=1;
 	int count=0;
@@ -101,24 +116,23 @@ int guild_storage_tosql(int guild_id, struct guild_storage *p){
 			mapitem[count].identify = p->storage_[i].identify;
 			mapitem[count].refine = p->storage_[i].refine;
 			mapitem[count].attribute = p->storage_[i].attribute;
-			mapitem[count].card[0] = p->storage_[i].card[0];
-			mapitem[count].card[1] = p->storage_[i].card[1];
-			mapitem[count].card[2] = p->storage_[i].card[2];
-			mapitem[count].card[3] = p->storage_[i].card[3];
+			for (j=0; j<MAX_SLOTS; j++)
+				mapitem[count].card[j] = p->storage_[i].card[j];
 			count++;
 		}
 	}
 
 	memitemdata_to_sql(mapitem, count, guild_id,TABLE_GUILD_STORAGE);
 
-	printf ("guild storage save to DB - id: %d (total: %d)\n", guild_id,i);
+	ShowInfo ("guild storage save to DB - id: %d (total: %d)\n", guild_id,i);
 	return 0;
 }
 
 // Load guild_storage data to mem
 int guild_storage_fromsql(int guild_id, struct guild_storage *p){
-	int i=0;
+	int i=0,j;
 	struct guild_storage *gs=guild_storage_pt;
+	char * str_p = tmp_sql;
 	p=gs;
 
 	memset(p,0,sizeof(struct guild_storage)); //clean up memory
@@ -126,9 +140,16 @@ int guild_storage_fromsql(int guild_id, struct guild_storage *p){
 	p->guild_id = guild_id;
 
 	// storage {`guild_id`/`id`/`nameid`/`amount`/`equip`/`identify`/`refine`/`attribute`/`card0`/`card1`/`card2`/`card3`}
-	sprintf(tmp_sql,"SELECT `id`,`nameid`,`amount`,`equip`,`identify`,`refine`,`attribute`,`card0`,`card1`,`card2`,`card3` FROM `%s` WHERE `guild_id`='%d'",guild_storage_db, guild_id);
+	str_p += sprintf(str_p,"SELECT `id`,`nameid`,`amount`,`equip`,`identify`,`refine`,`attribute`");
+
+	for (j=0; j<MAX_SLOTS; j++)
+		str_p += sprintf(str_p, ", `card%d`",  j);
+	
+	str_p += sprintf(str_p," FROM `%s` WHERE `guild_id`='%d' ORDER BY `nameid`", guild_storage_db, guild_id);
+	
 	if(mysql_query(&mysql_handle, tmp_sql) ) {
-		printf("DB server Error - %s\n", mysql_error(&mysql_handle) );
+		ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+		ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 	}
 	sql_res = mysql_store_result(&mysql_handle) ;
 
@@ -141,17 +162,15 @@ int guild_storage_fromsql(int guild_id, struct guild_storage *p){
 			p->storage_[i].identify= atoi(sql_row[4]);
 			p->storage_[i].refine= atoi(sql_row[5]);
 			p->storage_[i].attribute= atoi(sql_row[6]);
-			p->storage_[i].card[0]= atoi(sql_row[7]);
-			p->storage_[i].card[1]= atoi(sql_row[8]);
-			p->storage_[i].card[2]= atoi(sql_row[9]);
-			p->storage_[i].card[3]= atoi(sql_row[10]);
+			for (j=0; j<MAX_SLOTS; j++)
+				p->storage_[i].card[j] = atoi(sql_row[7+j]);
 			p->storage_amount = ++i;
 			if (i >= MAX_GUILD_STORAGE)
 				break;
 		}
 		mysql_free_result(sql_res);
 	}
-	printf ("guild storage load complete from DB - id: %d (total: %d)\n", guild_id, p->storage_amount);
+	ShowInfo ("guild storage load complete from DB - id: %d (total: %d)\n", guild_id, p->storage_amount);
 	return 0;
 }
 
@@ -160,11 +179,11 @@ int guild_storage_fromsql(int guild_id, struct guild_storage *p){
 int inter_storage_sql_init(){
 
 	//memory alloc
-	printf("interserver storage memory initialize....(%d byte)\n",sizeof(struct storage));
+	ShowDebug("interserver storage memory initialize....(%d byte)\n",sizeof(struct storage));
 	storage_pt = (struct storage*)aCalloc(sizeof(struct storage), 1);
 	guild_storage_pt = (struct guild_storage*)aCalloc(sizeof(struct guild_storage), 1);
-	memset(storage_pt,0,sizeof(struct storage));
-	memset(guild_storage_pt,0,sizeof(struct guild_storage));
+//	memset(storage_pt,0,sizeof(struct storage)); //Calloc sets stuff to 0 already. [Skotlex]
+//	memset(guild_storage_pt,0,sizeof(struct guild_storage));
 
 	return 1;
 }
@@ -180,7 +199,8 @@ int inter_storage_delete(int account_id)
 {
 		sprintf(tmp_sql, "DELETE FROM `%s` WHERE `account_id`='%d'",storage_db, account_id);
 	if(mysql_query(&mysql_handle, tmp_sql) ) {
-		printf("DB server Error (delete `storage`)- %s\n", mysql_error(&mysql_handle) );
+		ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+		ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 	}
 	return 0;
 }
@@ -188,7 +208,8 @@ int inter_guild_storage_delete(int guild_id)
 {
 	sprintf(tmp_sql, "DELETE FROM `%s` WHERE `guild_id`='%d'",guild_storage_db, guild_id);
 	if(mysql_query(&mysql_handle, tmp_sql) ) {
-		printf("DB server Error (delete `guild_storage`)- %s\n", mysql_error(&mysql_handle) );
+		ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+		ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 	}
 	return 0;
 }
@@ -218,14 +239,16 @@ int mapif_save_storage_ack(int fd,int account_id){
 
 int mapif_load_guild_storage(int fd,int account_id,int guild_id)
 {
-	int guild_exist=0;
+	int guild_exist=1;
 	WFIFOW(fd,0)=0x3818;
 
+#if 0	// innodb guilds should render this check unnecessary [Aru]
 	// Check if guild exists, I may write a function for this later, coz I use it several times.
 	//printf("- Check if guild %d exists\n",g->guild_id);
 	sprintf(tmp_sql, "SELECT count(*) FROM `%s` WHERE `guild_id`='%d'",guild_db, guild_id);
 	if(mysql_query(&mysql_handle, tmp_sql) ) {
-		printf("DB server Error (delete `guild`)- %s\n", mysql_error(&mysql_handle) );
+		ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+		ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 	}
 	sql_res = mysql_store_result(&mysql_handle) ;
 	if (sql_res!=NULL && mysql_num_rows(sql_res)>0) {
@@ -234,7 +257,7 @@ int mapif_load_guild_storage(int fd,int account_id,int guild_id)
 		//printf("- Check if guild %d exists : %s\n",g->guild_id,((guild_exist==0)?"No":"Yes"));
 	}
 	mysql_free_result(sql_res) ; //resource free
-
+#endif
 	if(guild_exist==1) {
 		guild_storage_fromsql(guild_id,guild_storage_pt);
 		WFIFOW(fd,2)=sizeof(struct guild_storage)+12;
@@ -275,7 +298,7 @@ int mapif_parse_SaveStorage(int fd){
 	int len=RFIFOW(fd,2);
 
 	if(sizeof(struct storage)!=len-8){
-		printf("inter storage: data size error %d %d\n",sizeof(struct storage),len-8);
+		ShowError("inter storage: data size error %d %d\n",sizeof(struct storage),len-8);
 	}else{
 		memcpy(&storage_pt[0],RFIFOP(fd,8),sizeof(struct storage));
 		storage_tosql(account_id, storage_pt);
@@ -292,18 +315,20 @@ int mapif_parse_LoadGuildStorage(int fd)
 
 int mapif_parse_SaveGuildStorage(int fd)
 {
-	int guild_exist=0;
+	int guild_exist=1;
 	int guild_id=RFIFOL(fd,8);
 	int len=RFIFOW(fd,2);
 	if(sizeof(struct guild_storage)!=len-12){
-		printf("inter storage: data size error %d %d\n",sizeof(struct guild_storage),len-12);
+		ShowError("inter storage: data size error %d %d\n",sizeof(struct guild_storage),len-12);
 	}
 	else {
+#if 0	// Again, innodb key checks make the check pointless
 		// Check if guild exists, I may write a function for this later, coz I use it several times.
 		//printf("- Check if guild %d exists\n",g->guild_id);
 		sprintf(tmp_sql, "SELECT count(*) FROM `%s` WHERE `guild_id`='%d'",guild_db, guild_id);
 		if(mysql_query(&mysql_handle, tmp_sql) ) {
-			printf("DB server Error (delete `guild`)- %s\n", mysql_error(&mysql_handle) );
+			ShowSQL("DB error - %s\n",mysql_error(&mysql_handle));
+			ShowDebug("at %s:%d - %s\n", __FILE__,__LINE__,tmp_sql);
 		}
 		sql_res = mysql_store_result(&mysql_handle) ;
 		if (sql_res!=NULL && mysql_num_rows(sql_res)>0) {
@@ -312,7 +337,7 @@ int mapif_parse_SaveGuildStorage(int fd)
 			//printf("- Check if guild %d exists : %s\n",g->guild_id,((guild_exist==0)?"No":"Yes"));
 		}
 		mysql_free_result(sql_res) ; //resource free
-
+#endif
 		if(guild_exist==1) {
 			memcpy(guild_storage_pt,RFIFOP(fd,12),sizeof(struct guild_storage));
 			guild_storage_tosql(guild_id,guild_storage_pt);

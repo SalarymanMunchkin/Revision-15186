@@ -1,90 +1,39 @@
 //===== eAthena Script ======================================= 
 //= Hunter Job Quest
 //===== By: ================================================== 
-//= EREMES THE CANIVALIZER (Aegis).
-//= Translated by yoshiki (Aegis)
+//= EREMES THE CANIVALIZER (Aegis)Translated by yoshiki (Aegis)
 //= Converted by kobra_k88
 //= Further bugfixed and tested by Lupus
 //===== Current Version: ===================================== 
-//= 1.8
+//= 1.7
 //===== Compatible With: ===================================== 
 //= eAthena 1.0
 //===== Description: ========================================= 
 //= Hunter Job Quest converted from aegis script
 //===== Additional Comments: ================================= 
-//= v1.0 Fully working.
-//= v1.1 Changed global variable names to unique ones.
-//= v1.2 - 1.3 Updates for eAthena +Knight2,Crusader2 fix
-//= v1.4 Rollback from the wrong Kashy's fix
-//= v1.5 Fixed items quest fork bug [Lupus]
-//= v1.6 Fixed items quest bug: added extra condition [Lupus]
-//= v1.7 Fixed skillpoints check bug [Lupus]
-//= v1.8 Fixed an exploit, thanks to nonox [celest]
+//= 0.5 Fully working.
+//= 0.6 Changed global variable names to unique ones.
+//= 0.7 - 0.8 Updates for eAthena +Knight2,Crusader2 fix
+//= 0.9 Fixed items quest fork bug [Lupus]
+//= 1.0 Fixed items quest bug: added extra condition [Lupus]
+//= 1.1 Fixed skillpoints check bug [Lupus]
+//= 1.2 Fixed an exploit, thanks to nonox [celest]
+//= 1.3 Added Baby Class support [Lupus]
+//= 1.5 Fixed possible EXP abuse [Lupus]
+//= 1.6 Added a func which prevent advanced classes passing
+//= 2nd Job Quests again. It also guides adv classes where
+//= to go. [Lupus]
+//= 1.6a Infinite Arrows exploit fix (thanx to Lorky, that
+//= reported the bug) [Lupus]
+//= 1.7 Moved the Job QUest to Hugel [Poki#3]
 //============================================================ 
 
-
-
-// Please add this warp to your warp/s script/s if it is not already there, or you can enable it here
-//in_hunter.gat,100,13,0	warp	hnt_to_payfild10	1,2,pay_fild10,145,250
-
-
-//<================================ Guildsman: Warps you to guild =======================================>\\
-pay_fild10.gat,148,251,4	script	Hunter Guildsman	98,{
-	warp "in_hunter.gat",100,18;
-	end;
-}
-
-
 //<====================================== Job Changer ========================================>\\
-in_hunter.gat,99,99,4	script	Hunter Sharon	727,{
-	if(Class==Job_Archer) goto L_Start;
-	if(Class==Job_Hunter) goto L_Hunt;
-	if(callfunc("Is_Bow_Class")) goto L_Other;
-	if(callfunc("Is_Sword_Class")) goto L_Swo;
-	if(callfunc("Is_Magic_Class")) goto L_Mage;
-	if(callfunc("Is_Thief_Class")) goto L_Thf;
-	if(callfunc("Is_Holy_Class")) goto L_Aco;
-	if(callfunc("Is_Merc_Class")) goto L_Merc;
+hu_in01.gat,386,374,4	script	Hunter Sharon	727,{
+	callfunc "F_BlockHigh",27,"High Archer",35,"Sniper","Hunter Sharon";
 
-L_Nov:
-	mes "[Hunter Sharon]";
-	mes "What's a novice like you doing here? Leave, we have nothing for you.";
-	emotion 1;
-	close;
-L_Swo:
-	mes "[Hunter Sharon]";
-	mes "A follower of the way of the blade! We have nothing for you here so please leave.";
-	close;
-L_Mage:
-	mes "[Hunter Sharon]";
-	mes "Hello mage type person.  If you have no business here, please leave,";
-	close;
-L_Aco:
-	mes "[Hunter Sharon]";
-	mes "Good day, religious zealot! It's nice to meet you and all, but you have no buisiness here.";
-	close;
-L_Merc:
-	mes "[Hunter Sharon]";
-	mes "Hey, how's buisiness? Perhaps if you want to sell something, go back to town.";
-	close;
-L_Thf:
-	mes "[Hunter Sharon]";
-	mes "Eeep! There's nothing to steal here!! Leave us alone..... go rob an old lady or something......";
-	emotion 23;
-	close;
-L_Hunt:
-	mes "[Hunter Sharon]";
-	mes "What up! "+strcharinfo(0)+" Why did you come back? Falcon run away or something? Te hehe.";
-	emotion 18;
-	next;
-	mes "[Hunter Sharon]";
-	mes "I hope you didn't think you could get free stuff from us just because your part of our guild now......";
-	close;
-L_Other:
-	mes "[Hunter Sharon]";
-	mes "What are YOU doing her? Did you come to do a little song and dance... ke.. keke....kekekeHahahahhaha!!!";
-	emotion 18;
-	close;
+	if(BaseJob==Job_Archer) goto L_Start;
+	callfunc "Hun_check";
 
 
 L_Start:
@@ -301,7 +250,7 @@ L_Start:
 			close;
 
 L_Test2:
-	mes "What you have to do next is go see ^5533FFMr. Demon Hunter^000000 over there to my left.  He'll tell you about the second test.";
+	mes "What you have to do next is go see ^5533FFMr. Demon Hunter^000000 behind me.  He'll tell you about the second test.";
 	next;
 	mes "[Hunter Sharon]";
 	mes "Good luck!";
@@ -331,13 +280,14 @@ L_Change:
 	next;
 	mes "[Hunter Sharon]";
 	mes "There you go! You look great in the hunter outfit";
-	jobchange Job_HUNTER;
+
+	callfunc "Job_Change",Job_Hunter;
 	emotion 21;
 	next;
 	mes "[Hunter Sharon]";
 	mes "Now, for working so hard, the guild has a small reward for you.";
 	if(JBLVL == 50) getitem 1718, 1;
-	if(JBLVL == 40) getitem 1710, 1;
+	if(JBLVL != 50) getitem 1710, 1;
 	callfunc "F_ClearJobVar";		// clears all job variables for the current player
 	next;
 	mes "[Hunter Sharon]";
@@ -373,9 +323,9 @@ L_Change:
 
 
 //<=========================== Demon Hunter: Second Test ===============================>\\
-in_hunter.gat,55,99,7	script	Demon Hunter	732,{
-	if(Class == Job_Archer) goto L_Arc;
-	if(Class == Job_Hunter) goto L_Hnt;
+hu_in01.gat,382,382,5	script	Demon Hunter	732,{
+	if(BaseJob == Job_Archer) goto L_Arc;
+	if(BaseJob == Job_Hunter) goto L_Hnt;
 
 L_Other:
 	mes "[Demon Hunter]";
@@ -443,7 +393,7 @@ L_Start:
 			goto L_Cont;
 		sL_3:
 			mes "[Demon Hunter]";
-			mes "^5533FF3 Dokaebi Horns";
+			mes "^5533FF3 Dokebi Horns";
 			mes "3 Pieces of Egg Shell.";
 			mes "and 10 Feathers^000000.";
 			goto L_Cont;
@@ -474,7 +424,7 @@ L_Start:
 			mes "[Demon Hunter]";
 			mes "DON'T you mess around with me! If you're gonna fool around then LEAVE!";
 			emotion 32;
-			warp "pay_fild10.gat", 133, 235;
+			warp "hugel.gat", 207, 222;
 			end;
 
 L_Check:
@@ -519,13 +469,13 @@ L_Check:
 	L_End:
 		mes "[Demon Hunter]";
 		mes "Good job.  You brought all the necesarry items.  Now go find the ^5533FFGuild Master^000000.";
-		mes "I think he's somewhere in the ^5533FFArcher Guild^000000.  He'll give you your final test.  Good luck.";
+		mes "I think he's somewhere in the ^5533FFArcher Guild^000000.  He'll give you your final test. Good luck.";
 		set HNTR_Q, 2;
 		set HNTR_Q2, 0;
 		close;
 
 L_Test3:
-	mes "Huh? Can't you find the guild master? He should be in the ^5533FFArcher Guild in Archer village^000000.  Go find him.";
+	mes "Huh? Can't you find the guild master? He should be in the ^5533FFArcher Guild in Archer village^000000. Go find him.";
 	emotion 20;
 	close;
 
@@ -538,8 +488,8 @@ L_Done:
 
 //<=============================== Guild Master: Last Test =================================>\\
 payon_in02.gat,21,31,1	script	Guild Master	59,{
-	if(Class == Job_Archer) goto L_Archer;
-	if(Class == Job_Hunter) goto L_Hnt;
+	if(BaseJob == Job_Archer) goto L_Archer;
+	if(BaseJob == Job_Hunter) goto L_Hnt;
 
 L_Other:
 	mes "[Hunter]";
@@ -602,11 +552,12 @@ L_Start:
 		mes "And ALWAYS watch your step!  There are traps everywhere!";
 		goto M_Menu;
 	M_Start:
-		if (countitem(1751) <= 5) callsub sF_GetArrows;
+		if (countitem(1751) <= 5 && @HNTR_QA==0) callsub sF_GetArrows;
 		mes "[Guild Master]";
 		mes "Good luck, I'll send you to the test room now.";
 		next;
 		set HNTR_Q2, 1;
+		set @HNTR_QA,0;
 		savepoint "payon_in02.gat", 16, 26;
 		warp "job_hunte.gat", 176, 22;
 		end;
@@ -615,6 +566,7 @@ L_Start:
 			mes "[Guild Master]";
 			mes "This is where your hard work in the 2nd test payed off.  Here are some arrows, made with the items you collected.";
  			getitem 1751, 200;
+			set @HNTR_QA,1;
 			next;
 			return;
 

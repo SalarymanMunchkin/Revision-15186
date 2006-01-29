@@ -1,16 +1,19 @@
-// $Id: intif.h,v 1.2 2004/09/25 05:32:18 MouseJstr Exp $
+// Copyright (c) Athena Dev Teams - Licensed under GNU GPL
+// For more information, see LICENCE in the main folder
+
 #ifndef _INTIF_H_
 #define _INFIF_H_
 
 int intif_parse(int fd);
 
 int intif_GMmessage(char* mes,int len,int flag);
+int intif_announce(char* mes,int len, unsigned long color, int flag);
 
 int intif_wis_message(struct map_session_data *sd,char *nick,char *mes,int mes_len);
 int intif_wis_message_to_gm(char *Wisp_name, int min_gm_level, char *mes);
 
-int intif_saveaccountreg(struct map_session_data *sd);
-int intif_request_accountreg(struct map_session_data *sd);
+int intif_saveregistry(struct map_session_data *sd, int type);
+int intif_request_registry(struct map_session_data *sd, int flag);
 
 int intif_request_storage(int account_id);
 int intif_send_storage(struct storage *stor);
@@ -20,13 +23,14 @@ int intif_send_guild_storage(int account_id, struct guild_storage *gstor);
 
 int intif_create_party(struct map_session_data *sd,char *name,int item,int item2);
 int intif_request_partyinfo(int party_id);
-int intif_party_addmember(int party_id, int account_id);
+int intif_party_addmember(int party_id, struct map_session_data *sd);
 int intif_party_changeoption(int party_id, int account_id, int exp, int item);
-int intif_party_leave(int party_id, int accound_id);
+int intif_party_leave(int party_id,int account_id, int char_id);
 int intif_party_changemap(struct map_session_data *sd, int online);
 int intif_break_party(int party_id);
 int intif_party_message(int party_id, int account_id, char *mes,int len);
-int intif_party_checkconflict(int party_id, int account_id, char *nick);
+int intif_party_checkconflict(int party_id,int account_id,int char_id);
+int intif_party_leaderchange(int party_id,int account_id,int char_id);
 
 
 int intif_guild_create(const char *name, const struct guild_member *master);
@@ -37,6 +41,7 @@ int intif_guild_memberinfoshort(int guild_id, int account_id, int char_id, int o
 int intif_guild_break(int guild_id);
 int intif_guild_message(int guild_id, int account_id, char *mes, int len);
 int intif_guild_checkconflict(int guild_id, int account_id, int char_id);
+int intif_guild_change_gm(int guild_id, const char* name, int len);
 int intif_guild_change_basicinfo(int guild_id, int type, const void *data, int len);
 int intif_guild_change_memberinfo(int guild_id, int account_id, int char_id, int type, const void *data, int len);
 int intif_guild_position(int guild_id, int idx, struct guild_position *p);
